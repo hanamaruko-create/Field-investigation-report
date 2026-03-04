@@ -54,6 +54,17 @@ export default function EntryPage() {
   const [floorPlanEraserStrokes,setFloorPlanEraserStrokes]= useState<EraserStroke[] | undefined>();
   const [showFloorPlanModal,    setShowFloorPlanModal]    = useState(false);
 
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  function appendFiles(itemId: string, files: File[]) {
+    if (!files.length) return;
+    updateItem(itemId, (prev) => ({
+      ...prev,
+      files: [...prev.files, ...files],
+      previewUrls: [...prev.previewUrls, ...files.map((f) => URL.createObjectURL(f))],
+    }));
+  }
+
   const knownCodes = useMemo(
     () => Object.keys(DISCLAIMER_TEXT_BY_CODE).sort(),
     [],
@@ -395,16 +406,7 @@ export default function EntryPage() {
                         accept="image/*"
                         className="hidden"
                         ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
-                        onChange={(e) => {
-                          const added = Array.from(e.target.files ?? []);
-                          e.target.value = "";
-                          if (!added.length) return;
-                          updateItem(it.id, (prev) => ({
-                            ...prev,
-                            files: [...prev.files, ...added],
-                            previewUrls: [...prev.previewUrls, ...added.map((f) => URL.createObjectURL(f))],
-                          }));
-                        }}
+                        onChange={(e) => { appendFiles(it.id, Array.from(e.target.files ?? [])); e.target.value = ""; }}
                       />
                     </label>
                     {/* ライブラリ／ファイル選択（複数可） */}
@@ -415,16 +417,7 @@ export default function EntryPage() {
                         accept="image/*"
                         multiple
                         className="hidden"
-                        onChange={(e) => {
-                          const added = Array.from(e.target.files ?? []);
-                          e.target.value = "";
-                          if (!added.length) return;
-                          updateItem(it.id, (prev) => ({
-                            ...prev,
-                            files: [...prev.files, ...added],
-                            previewUrls: [...prev.previewUrls, ...added.map((f) => URL.createObjectURL(f))],
-                          }));
-                        }}
+                        onChange={(e) => { appendFiles(it.id, Array.from(e.target.files ?? [])); e.target.value = ""; }}
                       />
                     </label>
                     {it.files.length > 0 && (
