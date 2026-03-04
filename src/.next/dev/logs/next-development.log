@@ -1,0 +1,135 @@
+[00:00:01.228] Server  LOG     ✓ Ready in 865ms
+[00:00:41.516] Server  ERROR   ⨯ ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:42.473] Browser ERROR   uncaughtError: Error: ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:42.654] Browser ERROR   ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:42.780] Browser ERROR   ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:51.046] Server  ERROR   ⨯ ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:51.168] Server  WARN    ⚠ Cross origin request detected from 172.16.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+[00:00:51.170] Browser ERROR   uncaughtError: Error: ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:51.355] Browser ERROR   ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:51.356] Browser ERROR   ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:52.058] Browser ERROR   ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+https://nextjs.org/docs/messages/module-not-found
+[00:00:52.058] Browser ERROR   ./coursor/report_gentyou/src/app/page.tsx:2:1
+Module not found: Can't resolve '@/lib/constants'
+  1 | import Link from "next/link";
+> 2 | import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function Home() {
+  5 |   // サンプルの表紙スタイル。PDFの1ページ目を再現するため、
+
+Import map: aliased to relative './src/lib/constants' inside of [project]/coursor/report_gentyou/src
+
+https://nextjs.org/docs/messages/module-not-found
