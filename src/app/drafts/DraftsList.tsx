@@ -89,6 +89,12 @@ export default function DraftsList() {
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Link
+                href={`/entry/${d.id}`}
+                className="inline-flex h-9 items-center rounded-lg border border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                続きを入力
+              </Link>
+              <Link
                 href={`/report/${d.id}`}
                 className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-xs font-medium text-white hover:bg-zinc-800"
               >

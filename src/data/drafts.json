@@ -962,5 +962,114 @@
       ],
       "eraserStrokes": []
     }
+  },
+  {
+    "id": "6dc3c86e-07e8-4083-9ab2-2012caaccd11",
+    "projectName": "テスト",
+    "contractorName": "株式会社IPEC",
+    "surveyDate": "2026-03-04",
+    "surveyContent": [
+      "除カビ・防カビ施工"
+    ],
+    "createdAt": "2026-03-04T20:35:31.560Z",
+    "items": [
+      {
+        "id": "635fe724-836b-4933-9f96-8b0228e3cd10",
+        "place": "テスト",
+        "code": "A",
+        "disclaimerText": "天井裏の要因 (水漏れ・配管結露・断熱材)\n天井裏にカビ発生の原因があるので、再発する可能性が高いです。除カビ防カビでは原因解決しないため、建設的な改善が必要になってくる箇所です。カビの初期発生箇所になりやすいです。その際は再発ではなく、新規カビとなります。\n対象箇所：水漏れ、雨漏り、配管結露、断熱材",
+        "photos": [
+          {
+            "filename": "0973e6cd-e820-431a-ad68-2448b75b5b3d.jpg",
+            "originalName": "S__194240721_0 - コピー.jpg",
+            "mimeType": "image/jpeg",
+            "size": 469857
+          },
+          {
+            "filename": "1265873f-ca72-409d-b164-2575bf3d98a2.jpg",
+            "originalName": "S__194240718_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 470370
+          },
+          {
+            "filename": "99f3c258-d5aa-48c0-80f3-52cb043bb972.jpg",
+            "originalName": "S__194240720_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 425465
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "d29dd030-9e7e-4810-97b7-abb530f96d7f",
+    "projectName": "あああ",
+    "contractorName": "株式会社IPEC",
+    "surveyDate": "2026-03-04",
+    "surveyContent": [
+      "除カビ・防カビ施工",
+      "アクシオン塗装"
+    ],
+    "createdAt": "2026-03-04T20:42:55.675Z",
+    "items": [
+      {
+        "id": "a8547010-fe88-4d2f-8d12-f0de41cb4eba",
+        "place": "あああ",
+        "code": "B",
+        "disclaimerText": "塗装の厚塗り\n塗装面には薬剤が根まで浸透しにくいので再発する可能性が高いです。また、カラーボードの場合、漂白される場合がございます。塗装裏にあるカビは薬剤が浸透しないため取りきれません。カラーボードや色有りの塗装は色抜けの可能性がございます。複数個所でテスト施工が必須になります。テスト施工不可の場合は、施工前に事前にテスト施工が必要となります。塗装天井は素材が変わるため (塗膜の影響) 結露がしやすく、防カビ剤が染み込まないため再発のリスクが極端に上がります。サーキュレーターや搬送ファンの設置をお勧めいたします。\n対象箇所：塗装(塗装裏のカビ)、塗装+排煙口",
+        "photos": [
+          {
+            "filename": "f5cdd29a-3632-4ab3-945d-996050c33d18.jpg",
+            "originalName": "S__194240721_0 - コピー.jpg",
+            "mimeType": "image/jpeg",
+            "size": 469857
+          },
+          {
+            "filename": "6162d2f7-967c-459c-a534-149b9a6050e1.jpg",
+            "originalName": "S__194240721_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 469857
+          },
+          {
+            "filename": "8513204d-43bd-47bf-a763-3b3bd476f090.jpg",
+            "originalName": "S__194240724_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 456458
+          },
+          {
+            "filename": "37ec4a5d-4caf-47db-a7fe-94aa2a45bf8f.jpg",
+            "originalName": "S__194240718_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 470370
+          }
+        ]
+      },
+      {
+        "id": "bf7bf1d2-dec5-486f-81a4-e0942b3f2257",
+        "place": "いいい",
+        "code": "J",
+        "disclaimerText": "素材の変色 (石膏ボードなど)\n薬剤の施工により素材が漂白される場合がございます。BYの石膏ボードは漂白されますのでご了承ください。\n対象箇所：石膏ボード",
+        "photos": [
+          {
+            "filename": "d7e8c3b7-de7e-425f-882a-465f4e8ed2b0.jpg",
+            "originalName": "S__194240720_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 425465
+          },
+          {
+            "filename": "898e9c6b-264a-4138-8f60-1ef535af3fe4.jpg",
+            "originalName": "S__194240722_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 467813
+          },
+          {
+            "filename": "c62c6b5a-6e4d-4a96-ab58-873f20724027.jpg",
+            "originalName": "S__194240724_0 - コピー.jpg",
+            "mimeType": "image/jpeg",
+            "size": 456458
+          }
+        ]
+      }
+    ]
   }
 ]

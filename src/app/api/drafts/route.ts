@@ -72,11 +72,12 @@ export async function POST(req: Request) {
     });
   }
 
-  // 図面ファイルを処理（報告書全体で1枚）
-  let draftFloorPlan: StoredFloorPlan | undefined;
-  const fpFile = formData.get("floorPlan");
-  const fpDataRaw = String(formData.get("floorPlanData") ?? "null");
-  if (fpFile instanceof File) {
+  // 図面ファイルを処理（複数対応）
+  const draftFloorPlans: StoredFloorPlan[] = [];
+  for (let i = 0; ; i++) {
+    const fpFile = formData.get(`floorPlan_${i}`);
+    const fpDataRaw = formData.get(`floorPlanData_${i}`)?.toString();
+    if (!(fpFile instanceof File) || !fpDataRaw) break;
     try {
       const fpData = JSON.parse(fpDataRaw) as {
         imageWidth: number; imageHeight: number;
@@ -84,13 +85,7 @@ export async function POST(req: Request) {
         eraserStrokes: StoredFloorPlan["eraserStrokes"];
       };
       const stored = await storeUpload(fpFile);
-      draftFloorPlan = {
-        filename: stored.filename,
-        imageWidth: fpData.imageWidth,
-        imageHeight: fpData.imageHeight,
-        annotations: fpData.annotations,
-        eraserStrokes: fpData.eraserStrokes,
-      };
+      draftFloorPlans.push({ filename: stored.filename, imageWidth: fpData.imageWidth, imageHeight: fpData.imageHeight, annotations: fpData.annotations, eraserStrokes: fpData.eraserStrokes });
     } catch { /* ignore */ }
   }
 
@@ -99,7 +94,7 @@ export async function POST(req: Request) {
     surveyDate: surveyDateRaw,
     surveyContent,
     items: storedItems,
-    floorPlan: draftFloorPlan,
+    floorPlans: draftFloorPlans,
   });
 
   return NextResponse.json({ draft }, { status: 201 });

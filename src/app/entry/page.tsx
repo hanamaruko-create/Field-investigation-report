@@ -46,13 +46,10 @@ export default function EntryPage() {
   const [items, setItems] = useState<EntryItem[]>([newItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 報告書全体で1枚の図面
-  const [floorPlanFile,         setFloorPlanFile]         = useState<File | undefined>();
-  const [floorPlanImageDataUrl, setFloorPlanImageDataUrl] = useState<string | undefined>();
-  const [floorPlanImageSize,    setFloorPlanImageSize]    = useState<{ w: number; h: number } | undefined>();
-  const [floorPlanAnnotations,  setFloorPlanAnnotations]  = useState<Annotation[] | undefined>();
-  const [floorPlanEraserStrokes,setFloorPlanEraserStrokes]= useState<EraserStroke[] | undefined>();
-  const [showFloorPlanModal,    setShowFloorPlanModal]    = useState(false);
+  type FPEntry = { id: string; file: File; imageDataUrl: string; imageSize: { w: number; h: number }; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
+  const [fpEntries,     setFpEntries]     = useState<FPEntry[]>([]);
+  const [editingFPId,   setEditingFPId]   = useState<string | null>(null);
+  const [showFPModal,   setShowFPModal]   = useState(false);
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -122,15 +119,11 @@ export default function EntryPage() {
       for (const file of allFiles) {
         formData.append("photos", file, file.name);
       }
-      // 図面ファイル（報告書全体で1枚）
-      if (floorPlanFile && floorPlanImageSize) {
-        formData.append("floorPlan", floorPlanFile, floorPlanFile.name);
-        formData.set("floorPlanData", JSON.stringify({
-          imageWidth: floorPlanImageSize.w,
-          imageHeight: floorPlanImageSize.h,
-          annotations: floorPlanAnnotations ?? [],
-          eraserStrokes: floorPlanEraserStrokes ?? [],
-        }));
+      // 図面ファイル（複数）
+      for (let i = 0; i < fpEntries.length; i++) {
+        const fp = fpEntries[i];
+        formData.append(`floorPlan_${i}`, fp.file, fp.file.name);
+        formData.set(`floorPlanData_${i}`, JSON.stringify({ imageWidth: fp.imageSize.w, imageHeight: fp.imageSize.h, annotations: fp.annotations, eraserStrokes: fp.eraserStrokes }));
       }
 
       const res = await fetch("/api/drafts", {
@@ -484,73 +477,54 @@ export default function EntryPage() {
         </div>
       </div>
 
-      {/* 図面セクション（報告書全体で1枚・最後に追加） */}
+      {/* 図面セクション（複数対応） */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <div className="text-sm font-semibold text-zinc-900">図面（任意）</div>
-            <div className="text-xs text-zinc-500">報告書の最後に1枚追加されます</div>
+            <div className="text-sm font-semibold text-zinc-900">図面（任意・複数可）</div>
+            <div className="text-xs text-zinc-500">報告書の最後に追加されます</div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowFloorPlanModal(true)}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
-            >
-              {floorPlanFile ? "図面を編集" : "図面を追加"}
-            </button>
-            {floorPlanFile && (
-              <button
-                type="button"
-                onClick={() => {
-                  setFloorPlanFile(undefined);
-                  setFloorPlanImageDataUrl(undefined);
-                  setFloorPlanImageSize(undefined);
-                  setFloorPlanAnnotations(undefined);
-                  setFloorPlanEraserStrokes(undefined);
-                }}
-                className="text-xs text-red-500 hover:text-red-700"
-              >
-                削除
-              </button>
-            )}
-          </div>
+          <button type="button" onClick={() => { setEditingFPId(null); setShowFPModal(true); }}
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50">
+            ＋ 図面を追加
+          </button>
         </div>
-        {floorPlanImageDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={floorPlanImageDataUrl}
-            alt="図面プレビュー"
-            className="max-h-48 w-auto rounded-lg border border-zinc-200 object-contain"
-          />
+        {fpEntries.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {fpEntries.map((fp) => (
+              <div key={fp.id} className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={fp.imageDataUrl} alt="図面" className="h-16 w-24 rounded object-contain border border-zinc-200 bg-white" />
+                <div className="flex flex-1 items-center justify-end gap-2">
+                  <button type="button" onClick={() => { setEditingFPId(fp.id); setShowFPModal(true); }}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs font-medium hover:bg-zinc-50">編集</button>
+                  <button type="button" onClick={() => setFpEntries((prev) => prev.filter((e) => e.id !== fp.id))}
+                    className="text-xs text-red-500 hover:text-red-700">削除</button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </section>
 
       {/* 図面アノテーションモーダル */}
-      {showFloorPlanModal && (
-        <FloorPlanModal
-          initial={
-            floorPlanFile
-              ? {
-                  file: floorPlanFile,
-                  imageDataUrl: floorPlanImageDataUrl!,
-                  imageSize: floorPlanImageSize!,
-                  annotations: floorPlanAnnotations ?? [],
-                  eraserStrokes: floorPlanEraserStrokes ?? [],
-                }
-              : undefined
-          }
-          onConfirm={(result: FloorPlanResult) => {
-            setFloorPlanFile(result.file);
-            setFloorPlanImageDataUrl(result.imageDataUrl);
-            setFloorPlanImageSize(result.imageSize);
-            setFloorPlanAnnotations(result.annotations);
-            setFloorPlanEraserStrokes(result.eraserStrokes);
-            setShowFloorPlanModal(false);
-          }}
-          onCancel={() => setShowFloorPlanModal(false)}
-        />
-      )}
+      {showFPModal && (() => {
+        const editing = editingFPId ? fpEntries.find((e) => e.id === editingFPId) : null;
+        return (
+          <FloorPlanModal
+            initial={editing ? { file: editing.file, imageDataUrl: editing.imageDataUrl, imageSize: editing.imageSize, annotations: editing.annotations, eraserStrokes: editing.eraserStrokes } : undefined}
+            onConfirm={(result: FloorPlanResult) => {
+              if (editingFPId) {
+                setFpEntries((prev) => prev.map((e) => e.id === editingFPId ? { ...e, file: result.file, imageDataUrl: result.imageDataUrl, imageSize: result.imageSize, annotations: result.annotations, eraserStrokes: result.eraserStrokes } : e));
+              } else {
+                setFpEntries((prev) => [...prev, { id: randomUUID(), file: result.file, imageDataUrl: result.imageDataUrl, imageSize: result.imageSize, annotations: result.annotations, eraserStrokes: result.eraserStrokes }]);
+              }
+              setShowFPModal(false);
+            }}
+            onCancel={() => setShowFPModal(false)}
+          />
+        );
+      })()}
     </div>
   );
 }

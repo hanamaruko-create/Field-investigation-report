@@ -34,7 +34,7 @@ export type Draft = {
   surveyContent: string[]; // 調査内容（複数）
   createdAt: string;
   items: DraftItem[];
-  floorPlan?: StoredFloorPlan;
+  floorPlans: StoredFloorPlan[];
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -73,14 +73,22 @@ function migrateDraftItem(raw: Record<string, unknown>): DraftItem {
 
 function migrateDraft(raw: Record<string, unknown>): Draft {
   const items = (raw.items as Array<Record<string, unknown>>).map(migrateDraftItem);
+  // 旧データ (floorPlan: single) → 新形式 (floorPlans: array) に移行
+  let floorPlans: StoredFloorPlan[] = [];
+  if (Array.isArray(raw.floorPlans)) {
+    floorPlans = raw.floorPlans as StoredFloorPlan[];
+  } else if (raw.floorPlan) {
+    floorPlans = [raw.floorPlan as StoredFloorPlan];
+  }
   return {
-    ...(raw as Omit<Draft, "items" | "surveyContent">),
+    ...(raw as Omit<Draft, "items" | "surveyContent" | "floorPlans">),
     surveyContent: Array.isArray(raw.surveyContent)
       ? (raw.surveyContent as string[])
       : typeof raw.surveyContent === "string" && raw.surveyContent
         ? [raw.surveyContent]
         : [],
     items,
+    floorPlans,
   };
 }
 
@@ -137,7 +145,7 @@ export async function createDraft(params: {
     disclaimerText?: string;
     photos: StoredPhoto[];
   }>;
-  floorPlan?: StoredFloorPlan;
+  floorPlans?: StoredFloorPlan[];
 }): Promise<Draft> {
   await ensureDirs();
   const raws = await readJsonFile<Record<string, unknown>[]>(DRAFTS_JSON, []);
@@ -158,12 +166,55 @@ export async function createDraft(params: {
       disclaimerText: it.disclaimerText,
       photos: it.photos,
     })),
-    floorPlan: params.floorPlan,
+    floorPlans: params.floorPlans ?? [],
   };
 
   drafts.push(draft);
   await writeJsonFile(DRAFTS_JSON, drafts);
   return draft;
+}
+
+export async function deleteUploads(filenames: string[]): Promise<void> {
+  for (const filename of filenames) {
+    try { await fs.unlink(path.join(UPLOADS_DIR, filename)); } catch { /* 既になくても続行 */ }
+  }
+}
+
+export async function updateDraftFull(
+  id: string,
+  params: {
+    projectName: string;
+    surveyDate: string;
+    surveyContent: string[];
+    items: Array<{
+      id?: string;
+      place: string;
+      code?: string;
+      disclaimerText?: string;
+      photos: StoredPhoto[];
+    }>;
+  },
+): Promise<boolean> {
+  await ensureDirs();
+  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+  const idx = raws.findIndex((d) => String(d.id) === String(id));
+  if (idx === -1) return false;
+  raws[idx] = {
+    ...raws[idx],
+    projectName: params.projectName,
+    surveyDate: params.surveyDate,
+    surveyContent: params.surveyContent,
+    items: params.items.map((it) => ({
+      id: it.id ?? crypto.randomUUID(),
+      place: it.place,
+      code: it.code ?? "",
+      disclaimerText: it.disclaimerText ?? "",
+      photos: it.photos,
+    })),
+  };
+  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+  return true;
 }
 
 export async function addItemToDraft(
@@ -220,21 +271,34 @@ export async function removePhotoFromItem(
   return true;
 }
 
-export async function updateDraftFloorPlan(
+export async function addFloorPlanToDraft(
   id: string,
-  floorPlan: StoredFloorPlan | undefined,
+  floorPlan: StoredFloorPlan,
 ): Promise<boolean> {
   await ensureDirs();
   const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
   const raws = JSON.parse(text) as Array<Record<string, unknown>>;
   const idx = raws.findIndex((d) => String(d.id) === String(id));
   if (idx === -1) return false;
-  if (floorPlan === undefined) {
-    delete raws[idx].floorPlan;
-  } else {
-    raws[idx].floorPlan = floorPlan;
-  }
+  const existing = (raws[idx].floorPlans as StoredFloorPlan[] | undefined) ?? [];
+  raws[idx].floorPlans = [...existing, floorPlan];
   await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+  return true;
+}
+
+export async function removeFloorPlanFromDraft(
+  id: string,
+  filename: string,
+): Promise<boolean> {
+  await ensureDirs();
+  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+  const idx = raws.findIndex((d) => String(d.id) === String(id));
+  if (idx === -1) return false;
+  const existing = (raws[idx].floorPlans as StoredFloorPlan[] | undefined) ?? [];
+  raws[idx].floorPlans = existing.filter((fp) => fp.filename !== filename);
+  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+  try { await fs.unlink(path.join(UPLOADS_DIR, filename)); } catch { /* 既になくても続行 */ }
   return true;
 }
 
@@ -267,6 +331,14 @@ export async function deleteDraft(id: string): Promise<boolean> {
         // ファイルが既になくても続行
       }
     }
+  }
+
+  // 図面ファイルを削除
+  const floorPlans = Array.isArray(target.floorPlans)
+    ? (target.floorPlans as Array<{ filename: string }>)
+    : target.floorPlan ? [target.floorPlan as { filename: string }] : [];
+  for (const fp of floorPlans) {
+    try { await fs.unlink(path.join(UPLOADS_DIR, fp.filename)); } catch { /* 既になくても続行 */ }
   }
 
   const remaining = raws.filter((_, i) => i !== idx);

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addItemToDraft, addPhotosToItem, deleteDraft, getDraft, removePhotoFromItem, storeUpload, updateDraftFloorPlan } from "@/lib/storage";
+import { addFloorPlanToDraft, addItemToDraft, addPhotosToItem, deleteUploads, deleteDraft, getDraft, removeFloorPlanFromDraft, removePhotoFromItem, storeUpload, updateDraftFull } from "@/lib/storage";
 import crypto from "node:crypto";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 
@@ -63,34 +63,72 @@ export async function PATCH(
       return NextResponse.json({ ok: true });
     }
 
+    if (action === "add-floor-plan") {
+      const fpFile = formData.get("floorPlan");
+      const fpDataRaw = formData.get("floorPlanData")?.toString();
+      if (!(fpFile instanceof File) || !fpDataRaw) return NextResponse.json({ error: "invalid" }, { status: 400 });
+      const fpData = JSON.parse(fpDataRaw) as { imageWidth: number; imageHeight: number; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
+      const stored = await storeUpload(fpFile);
+      const floorPlan = { filename: stored.filename, imageWidth: fpData.imageWidth, imageHeight: fpData.imageHeight, annotations: fpData.annotations, eraserStrokes: fpData.eraserStrokes };
+      const ok = await addFloorPlanToDraft(id, floorPlan);
+      if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
+      return NextResponse.json({ ok: true, floorPlan });
+    }
+
     if (action === "delete-floor-plan") {
-      const ok = await updateDraftFloorPlan(id, undefined);
+      const filename = formData.get("filename")?.toString();
+      if (!filename) return NextResponse.json({ error: "filename required" }, { status: 400 });
+      const ok = await removeFloorPlanFromDraft(id, filename);
       if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
       return NextResponse.json({ ok: true });
     }
 
-    const fpFile = formData.get("floorPlan");
-    const fpDataRaw = formData.get("floorPlanData")?.toString();
-    if (!(fpFile instanceof File) || !fpDataRaw) {
-      return NextResponse.json({ error: "invalid" }, { status: 400 });
-    }
-    const fpData = JSON.parse(fpDataRaw) as {
-      imageWidth: number; imageHeight: number;
-      annotations: Annotation[]; eraserStrokes: EraserStroke[];
-    };
-    const stored = await storeUpload(fpFile);
-    const ok = await updateDraftFloorPlan(id, {
-      filename: stored.filename,
-      imageWidth: fpData.imageWidth,
-      imageHeight: fpData.imageHeight,
-      annotations: fpData.annotations,
-      eraserStrokes: fpData.eraserStrokes,
-    });
-    if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
-    return NextResponse.json({ ok: true, filename: stored.filename });
+    return NextResponse.json({ error: "unknown action" }, { status: 400 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[PATCH /api/drafts/[id]]", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  req: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await context.params;
+    const existing = await getDraft(id);
+    if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+    const formData = await req.formData();
+    const projectName = formData.get("projectName")?.toString() ?? "";
+    const surveyDate  = formData.get("surveyDate")?.toString() ?? "";
+    const surveyContent = JSON.parse(formData.get("surveyContent")?.toString() ?? "[]") as string[];
+    const itemsMeta = JSON.parse(formData.get("items")?.toString() ?? "[]") as Array<{
+      id: string | null; place: string; code: string; disclaimerText: string; keepFilenames: string[];
+    }>;
+
+    const newItems = [];
+    for (let i = 0; i < itemsMeta.length; i++) {
+      const meta = itemsMeta[i];
+      const existingItem = meta.id ? existing.items.find((it) => it.id === meta.id) : null;
+      const keptPhotos = (existingItem?.photos ?? []).filter((p) => meta.keepFilenames.includes(p.filename));
+      const removedFilenames = (existingItem?.photos ?? []).filter((p) => !meta.keepFilenames.includes(p.filename)).map((p) => p.filename);
+      if (removedFilenames.length) await deleteUploads(removedFilenames);
+      const newPhotoFiles = formData.getAll(`photos_${i}`);
+      const newStoredPhotos = [];
+      for (const file of newPhotoFiles) {
+        if (file instanceof File && file.size > 0) newStoredPhotos.push(await storeUpload(file));
+      }
+      newItems.push({ id: meta.id ?? crypto.randomUUID(), place: meta.place, code: meta.code, disclaimerText: meta.disclaimerText, photos: [...keptPhotos, ...newStoredPhotos] });
+    }
+
+    const ok = await updateDraftFull(id, { projectName, surveyDate, surveyContent, items: newItems });
+    if (!ok) return NextResponse.json({ error: "update failed" }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[PUT /api/drafts/[id]]", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

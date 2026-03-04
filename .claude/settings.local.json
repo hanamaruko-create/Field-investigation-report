@@ -8,7 +8,8 @@
       "Bash(cmd:*)",
       "Bash(powershell:*)",
       "mcp__ide__getDiagnostics",
-      "WebFetch(domain:160.251.183.221)"
+      "WebFetch(domain:160.251.183.221)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
