@@ -6,7 +6,7 @@ import {
   DISCLAIMER_TEXT_BY_CODE,
   buildDisclaimerTextFromCodes,
 } from "@/lib/disclaimers";
-import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+import { CONTRACTOR_NAME, PROJECT_NAME, SURVEY_CONTENT_OPTIONS } from "@/lib/constants";
 
 type EntryItem = {
   id: string;
@@ -36,7 +36,10 @@ function newItem(): EntryItem {
 
 export default function EntryPage() {
   const router = useRouter();
+  const [projectName, setProjectName] = useState("");
   const [surveyDate, setSurveyDate] = useState(todayYyyyMmDd());
+  const [surveyContents, setSurveyContents] = useState<string[]>([]);
+  const [surveyContentCustom, setSurveyContentCustom] = useState("");
   const [items, setItems] = useState<EntryItem[]>([newItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +74,9 @@ export default function EntryPage() {
     setSubmitting(true);
     try {
       const formData = new FormData();
+      formData.set("projectName", projectName);
       formData.set("surveyDate", surveyDate);
+      formData.set("surveyContent", JSON.stringify(surveyContents));
 
       const allFiles: File[] = [];
       const payloadItems = items.map((it) => {
@@ -117,25 +122,116 @@ export default function EntryPage() {
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <header className="mb-8 flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              報告書入力（下書き作成）
-            </h1>
-            <p className="text-sm text-zinc-600">
-              工事名称：{PROJECT_NAME} / 請負者：{CONTRACTOR_NAME}
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                報告書入力（下書き作成）
+              </h1>
+              <p className="text-sm text-zinc-600">請負者：{CONTRACTOR_NAME}</p>
+            </div>
+            <a
+              href="/"
+              className="inline-flex h-9 shrink-0 items-center rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-700 shadow-sm hover:bg-zinc-50"
+            >
+              ← トップへ
+            </a>
           </div>
 
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-zinc-700">工事名称</span>
+            <input
+              type="text"
+              placeholder="工事名称を入力"
+              className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-zinc-400"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+            />
+          </label>
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-zinc-700">調査日</span>
-              <input
-                type="date"
-                className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-zinc-400"
-                value={surveyDate}
-                onChange={(e) => setSurveyDate(e.target.value)}
-              />
-            </label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-zinc-700">調査日</span>
+                <input
+                  type="date"
+                  className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-zinc-400"
+                  value={surveyDate}
+                  onChange={(e) => setSurveyDate(e.target.value)}
+                />
+              </label>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-zinc-700">調査内容（複数選択可）</span>
+                <div className="flex flex-wrap gap-2">
+                  {SURVEY_CONTENT_OPTIONS.map((opt) => {
+                    const active = surveyContents.includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                          active
+                            ? "border-zinc-900 bg-zinc-900 text-white"
+                            : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                        }`}
+                        onClick={() =>
+                          setSurveyContents((prev) =>
+                            prev.includes(opt) ? prev.filter((v) => v !== opt) : [...prev, opt],
+                          )
+                        }
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="その他（自由入力して追加）"
+                    className="h-9 flex-1 rounded-xl border border-zinc-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-zinc-400"
+                    value={surveyContentCustom}
+                    onChange={(e) => setSurveyContentCustom(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && surveyContentCustom.trim()) {
+                        e.preventDefault();
+                        const val = surveyContentCustom.trim();
+                        if (!surveyContents.includes(val)) setSurveyContents((prev) => [...prev, val]);
+                        setSurveyContentCustom("");
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-medium hover:bg-zinc-50 disabled:opacity-40"
+                    disabled={!surveyContentCustom.trim()}
+                    onClick={() => {
+                      const val = surveyContentCustom.trim();
+                      if (val && !surveyContents.includes(val)) setSurveyContents((prev) => [...prev, val]);
+                      setSurveyContentCustom("");
+                    }}
+                  >
+                    追加
+                  </button>
+                </div>
+                {surveyContents.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {surveyContents.map((v) => (
+                      <span key={v} className="flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">
+                        {v}
+                        <button
+                          type="button"
+                          className="text-zinc-400 hover:text-zinc-700"
+                          onClick={() => setSurveyContents((prev) => prev.filter((x) => x !== v))}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="flex gap-2">
               <button

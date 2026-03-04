@@ -1,0 +1,61 @@
+[
+  {
+    "id": "d0730bcf-5418-4f1d-bf8a-932445b46091",
+    "projectName": "あああ",
+    "contractorName": "株式会社IPEC",
+    "surveyDate": "2026-03-04",
+    "surveyContent": [
+      "除カビ・防カビ施工",
+      "アクシオン塗装"
+    ],
+    "createdAt": "2026-03-04T02:21:50.617Z",
+    "items": [
+      {
+        "id": "ceb04a64-7346-4ac9-ac7d-2d7dcae9f748",
+        "place": "えええ",
+        "code": "A",
+        "disclaimerText": "天井裏の要因 (水漏れ・配管結露・断熱材)\n天井裏にカビ発生の原因があるので、再発する可能性が高いです。除カビ防カビでは原因解決しないため、建設的な改善が必要になってくる箇所です。カビの初期発生箇所になりやすいです。その際は再発ではなく、新規カビとなります。\n対象箇所：水漏れ、雨漏り、配管結露、断熱材",
+        "photos": [
+          {
+            "filename": "fbb7ad0e-5115-48fb-9ca8-e5e8d755d193.jpg",
+            "originalName": "S__194240727_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 419979
+          },
+          {
+            "filename": "6beba3b9-b3d5-4a0a-9201-002d96e74f9e.jpg",
+            "originalName": "S__194240728_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 494726
+          },
+          {
+            "filename": "61155334-8b19-4bd7-b7cb-e886acb6c417.jpg",
+            "originalName": "S__194240726_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 502279
+          }
+        ]
+      },
+      {
+        "id": "448366d1-931c-40fe-8a51-22bb95aa9dae",
+        "place": "おおお",
+        "code": "D",
+        "disclaimerText": "スピーカー・点検口・シャッター・区画ガラス等\nスピーカーや点検口等の金属部は結露が生じやすくなる場合があるので、再発する可能性が高くなります。設置不良により天井裏との隙間が空いていたり、結露によるボードの歪みがあるとさらにカビが生じやすくなります。\n対象箇所：スピーカー、点検口、防火シャッター、区画ガラス+防火シャッター、区画ガラス+塗装、区画ガラス",
+        "photos": [
+          {
+            "filename": "0a78572a-6dfc-42c2-a0b7-5a73c19f41c0.jpg",
+            "originalName": "S__194240728_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 494726
+          },
+          {
+            "filename": "4a57d27b-4a8b-4fae-a05f-0b97f62fcfc1.jpg",
+            "originalName": "S__194240730_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 450842
+          }
+        ]
+      }
+    ]
+  }
+]

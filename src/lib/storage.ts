@@ -30,6 +30,7 @@ export type Draft = {
   projectName: string;
   contractorName: string;
   surveyDate: string; // yyyy-mm-dd
+  surveyContent: string[]; // 調査内容（複数）
   createdAt: string;
   items: DraftItem[];
 };
@@ -70,7 +71,15 @@ function migrateDraftItem(raw: Record<string, unknown>): DraftItem {
 
 function migrateDraft(raw: Record<string, unknown>): Draft {
   const items = (raw.items as Array<Record<string, unknown>>).map(migrateDraftItem);
-  return { ...(raw as Omit<Draft, "items">), items };
+  return {
+    ...(raw as Omit<Draft, "items" | "surveyContent">),
+    surveyContent: Array.isArray(raw.surveyContent)
+      ? (raw.surveyContent as string[])
+      : typeof raw.surveyContent === "string" && raw.surveyContent
+        ? [raw.surveyContent]
+        : [],
+    items,
+  };
 }
 
 export async function listDrafts(): Promise<Draft[]> {
@@ -116,7 +125,9 @@ export async function storeUpload(file: File): Promise<StoredPhoto> {
 }
 
 export async function createDraft(params: {
+  projectName: string;
   surveyDate: string;
+  surveyContent: string[];
   items: Array<{
     id?: string;
     place: string;
@@ -132,9 +143,10 @@ export async function createDraft(params: {
 
   const draft: Draft = {
     id: crypto.randomUUID(),
-    projectName: PROJECT_NAME,
+    projectName: params.projectName || PROJECT_NAME,
     contractorName: CONTRACTOR_NAME,
     surveyDate: params.surveyDate,
+    surveyContent: params.surveyContent,
     createdAt: now,
     items: params.items.map((it) => ({
       id: it.id ?? crypto.randomUUID(),

@@ -12,12 +12,20 @@ export default function DraftsPage() {
               登録した施工場所・免責・写真を確認できます。
             </p>
           </div>
-          <Link
-            href="/entry"
-            className="inline-flex h-11 items-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white shadow-sm hover:bg-zinc-800"
-          >
-            新規作成
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/"
+              className="inline-flex h-11 items-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+            >
+              ← トップへ
+            </Link>
+            <Link
+              href="/entry"
+              className="inline-flex h-11 items-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white shadow-sm hover:bg-zinc-800"
+            >
+              新規作成
+            </Link>
+          </div>
         </header>
 
         <DraftsList />

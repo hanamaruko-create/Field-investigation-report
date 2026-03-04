@@ -76,7 +76,8 @@ export default function DraftsList() {
         >
           <div className="mb-4 flex flex-col gap-1">
             <div className="text-sm font-semibold">
-              {d.projectName} / 調査日：{d.surveyDate}
+              {d.projectName || "（工事名称未入力）"}
+              　{new Date(d.surveyDate + "T00:00:00").toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
             </div>
             <div className="text-xs text-zinc-500">
               請負者：{d.contractorName} / 登録：

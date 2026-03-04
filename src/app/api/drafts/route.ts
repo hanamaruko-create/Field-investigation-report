@@ -11,7 +11,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const formData = await req.formData();
+  const projectName = String(formData.get("projectName") ?? "").trim();
   const surveyDateRaw = String(formData.get("surveyDate") ?? "").trim();
+  const surveyContentRaw = String(formData.get("surveyContent") ?? "[]");
+  let surveyContent: string[] = [];
+  try { surveyContent = JSON.parse(surveyContentRaw) as string[]; } catch { surveyContent = []; }
   const itemsRaw = String(formData.get("items") ?? "[]");
 
   let items: DraftItemInput[];
@@ -68,7 +72,9 @@ export async function POST(req: Request) {
   }
 
   const draft = await createDraft({
+    projectName,
     surveyDate: surveyDateRaw,
+    surveyContent,
     items: storedItems,
   });
 

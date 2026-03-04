@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Draft, DraftItem } from "@/lib/storage";
+import { CONTRACTOR_NAME, COMPANY_ADDRESS, COMPANY_TEL, COMPANY_FAX } from "@/lib/constants";
 
 // 写真枚数に応じた列数を決定
 function photoCols(n: number): number {
@@ -22,6 +23,9 @@ export default function ReportEditor({ draft }: Props) {
   const [projectName, setProjectName] = useState(draft.projectName);
   const [contractorName, setContractorName] = useState(draft.contractorName);
   const [surveyDate, setSurveyDate] = useState(draft.surveyDate);
+  const [surveyContents, setSurveyContents] = useState<string[]>(
+    Array.isArray(draft.surveyContent) ? draft.surveyContent : [],
+  );
   const [items, setItems] = useState<EditableItem[]>(
     draft.items.map((it) => ({ ...it, disclaimerText: it.disclaimerText ?? "" })),
   );
@@ -55,10 +59,16 @@ export default function ReportEditor({ draft }: Props) {
         </span>
         <div className="flex gap-2">
           <a
+            href="/"
+            className="inline-flex h-9 items-center rounded-lg border border-zinc-200 px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+          >
+            ← トップへ
+          </a>
+          <a
             href="/drafts"
             className="inline-flex h-9 items-center rounded-lg border border-zinc-200 px-3 text-sm text-zinc-700 hover:bg-zinc-50"
           >
-            ← 一覧へ
+            一覧へ
           </a>
           <button
             type="button"
@@ -72,47 +82,56 @@ export default function ReportEditor({ draft }: Props) {
 
       {/* 報告書本体 */}
       <div className="bg-zinc-100 py-8 print:bg-white print:py-0">
-        <div
-          ref={printAreaRef}
-          className="report-sheet mx-auto w-full max-w-3xl bg-white shadow-md print:max-w-none print:shadow-none"
-        >
-          {/* ヘッダー */}
-          <header className="border-b-2 border-zinc-800 px-10 py-8 print:px-8 print:py-6">
-            <p className="text-xs tracking-[0.4em] text-zinc-500">現 地 調 査 報 告 書</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900">
-              <EditableText
-                value={projectName}
-                onChange={setProjectName}
-                className="w-full border-b border-dashed border-zinc-300 focus:border-zinc-600 focus:outline-none"
-                placeholder="工事名称"
-              />
-            </h1>
-            <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-sm text-zinc-700">
-              <div className="flex gap-2">
-                <dt className="shrink-0 font-medium">調査日</dt>
-                <dd>
+        {/* 表紙 */}
+        <div className="cover-page report-sheet mx-auto mb-8 flex w-full max-w-3xl flex-col items-center justify-center bg-white shadow-md print:mb-0 print:max-w-none print:shadow-none" style={{ minHeight: "297mm" }}>
+          <div className="flex flex-col items-center gap-10 px-16 text-center">
+            <p className="text-sm tracking-[0.5em] text-zinc-400">SITE INVESTIGATION REPORT</p>
+            <h1 className="text-5xl font-bold tracking-[0.3em] text-zinc-900">現地調査報告書</h1>
+            <dl className="mt-4 w-full max-w-md space-y-6 border-y border-zinc-300 py-10 text-left text-sm">
+              <div className="flex gap-4">
+                <dt className="w-20 shrink-0 font-medium text-zinc-600">工事名称</dt>
+                <dd className="flex-1">
+                  <EditableText
+                    value={projectName}
+                    onChange={setProjectName}
+                    className="w-full border-b border-dashed border-zinc-300 text-zinc-900 focus:border-zinc-600 focus:outline-none"
+                    placeholder="工事名称を入力"
+                  />
+                </dd>
+              </div>
+              {surveyContents.length > 0 && (
+                <div className="flex gap-4">
+                  <dt className="w-20 shrink-0 font-medium text-zinc-600">調査内容</dt>
+                  <dd className="flex-1 text-zinc-900">
+                    {surveyContents.join("・")}
+                  </dd>
+                </div>
+              )}
+              <div className="flex gap-4">
+                <dt className="w-20 shrink-0 font-medium text-zinc-600">調査日</dt>
+                <dd className="flex-1">
                   <input
                     type="date"
                     value={surveyDate}
                     onChange={(e) => setSurveyDate(e.target.value)}
-                    className="border-b border-dashed border-zinc-300 bg-transparent focus:border-zinc-600 focus:outline-none print:hidden"
+                    className="border-b border-dashed border-zinc-300 bg-transparent text-zinc-900 focus:border-zinc-600 focus:outline-none print:hidden"
                   />
                   <span className="hidden print:inline">{formattedDate}</span>
                 </dd>
               </div>
-              <div className="flex gap-2">
-                <dt className="shrink-0 font-medium">請負者</dt>
-                <dd className="flex-1">
-                  <EditableText
-                    value={contractorName}
-                    onChange={setContractorName}
-                    className="w-full border-b border-dashed border-zinc-300 focus:border-zinc-600 focus:outline-none"
-                    placeholder="請負者名"
-                  />
-                </dd>
-              </div>
             </dl>
-          </header>
+            <div className="space-y-1 text-sm text-zinc-600">
+              <p className="font-semibold text-zinc-800">請負者：{CONTRACTOR_NAME}</p>
+              <p>{COMPANY_ADDRESS}</p>
+              <p>TEL: {COMPANY_TEL} / FAX: {COMPANY_FAX}</p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={printAreaRef}
+          className="report-sheet mx-auto w-full max-w-3xl bg-white shadow-md print:max-w-none print:shadow-none"
+        >
 
           {/* 各撮影場所セクション */}
           <main className="divide-y divide-zinc-100 px-10 py-6 print:px-8">
@@ -134,11 +153,6 @@ export default function ReportEditor({ draft }: Props) {
                       className="flex-1 border-b border-dashed border-zinc-300 text-base font-bold text-zinc-900 focus:border-zinc-600 focus:outline-none"
                       placeholder="撮影場所"
                     />
-                    {item.code ? (
-                      <span className="shrink-0 text-xs text-zinc-500">
-                        免責コード：{item.code}
-                      </span>
-                    ) : null}
                   </div>
 
                   {/* 写真グリッド（1枠内に全写真を均一サイズで配置） */}
@@ -207,6 +221,13 @@ export default function ReportEditor({ draft }: Props) {
             max-width: none !important;
             width: 100% !important;
           }
+
+          .cover-page {
+            page-break-after: always;
+            break-after: page;
+            min-height: 100vh;
+            margin-bottom: 0 !important;
+          }
         }
       `}</style>
     </>
@@ -236,7 +257,7 @@ function EditableText({
   );
 }
 
-// インライン編集用テキストエリアコンポーネント
+// インライン編集用テキストエリアコンポーネント（高さ自動調整）
 function EditableTextarea({
   value,
   onChange,
@@ -246,12 +267,22 @@ function EditableTextarea({
   onChange: (v: string) => void;
   className?: string;
 }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = "auto";
+      ref.current.style.height = `${ref.current.scrollHeight}px`;
+    }
+  }, [value]);
+
   return (
     <textarea
+      ref={ref}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      rows={Math.max(3, value.split("\n").length)}
-      className={`resize-y ${className ?? ""}`}
+      rows={1}
+      className={`resize-none overflow-hidden ${className ?? ""}`}
     />
   );
 }
