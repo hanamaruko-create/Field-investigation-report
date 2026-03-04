@@ -442,7 +442,16 @@ export default function EntryPage() {
                   </div>
 
                   {it.previewUrls.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                    <div
+                      className={`grid grid-cols-2 gap-2 rounded-xl border-2 border-dashed p-1 transition-colors md:grid-cols-3 ${dragOverId === it.id ? "border-blue-400 bg-blue-50" : "border-transparent"}`}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverId(it.id); }}
+                      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverId(null); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverId(null);
+                        appendFiles(it.id, Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/")));
+                      }}
+                    >
                       {it.previewUrls.map((url, index) => (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -454,8 +463,17 @@ export default function EntryPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-10 text-center text-sm text-zinc-500">
-                      画像を選択するとここにプレビューが表示されます
+                    <div
+                      className={`rounded-xl border-2 border-dashed px-4 py-10 text-center text-sm transition-colors ${dragOverId === it.id ? "border-blue-400 bg-blue-50 text-blue-600" : "border-zinc-200 bg-zinc-50 text-zinc-500"}`}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverId(it.id); }}
+                      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverId(null); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverId(null);
+                        appendFiles(it.id, Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/")));
+                      }}
+                    >
+                      {dragOverId === it.id ? "ここにドロップして追加" : "画像をドラッグ＆ドロップ、またはボタンから選択"}
                     </div>
                   )}
                 </div>

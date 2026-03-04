@@ -42,6 +42,41 @@ export default function ReportEditor({ draft }: Props) {
   );
   const [showFPModal, setShowFPModal] = useState(false);
 
+  // 撮影場所追加フォーム
+  const [addingItem, setAddingItem] = useState(false);
+  const [newPlace, setNewPlace] = useState("");
+  const [newDisclaimer, setNewDisclaimer] = useState("");
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  const [newDragOver, setNewDragOver] = useState(false);
+
+  function appendNewFiles(files: File[]) {
+    if (!files.length) return;
+    setNewFiles((prev) => [...prev, ...files]);
+    setNewPreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))]);
+  }
+
+  function resetNewItem() {
+    newPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setAddingItem(false); setNewPlace(""); setNewDisclaimer("");
+    setNewFiles([]); setNewPreviews([]);
+  }
+
+  async function submitNewItem() {
+    if (!newPlace.trim()) return;
+    const fd = new FormData();
+    fd.append("action", "add-item");
+    fd.append("place", newPlace.trim());
+    fd.append("disclaimerText", newDisclaimer);
+    for (const f of newFiles) fd.append("photos", f, f.name);
+    const res = await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", body: fd });
+    const json = await res.json() as { ok: boolean; item?: EditableItem };
+    if (json.ok && json.item) {
+      setItems((prev) => [...prev, { ...json.item!, disclaimerText: json.item!.disclaimerText ?? "" }]);
+    }
+    resetNewItem();
+  }
+
   async function addPhotos(itemId: string, files: File[]) {
     if (!files.length) return;
     const fd = new FormData();
@@ -274,6 +309,74 @@ export default function ReportEditor({ draft }: Props) {
                 </section>
               );
             })}
+            {/* 撮影場所追加フォーム */}
+            {addingItem && (
+              <section className="no-print py-6 border-t border-zinc-100">
+                <p className="mb-3 text-sm font-semibold text-zinc-700">新しい撮影場所を追加</p>
+                <div className="flex flex-col gap-3">
+                  <input
+                    type="text" placeholder="撮影場所" value={newPlace}
+                    onChange={(e) => setNewPlace(e.target.value)}
+                    className="h-10 rounded-lg border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-400"
+                  />
+                  <textarea
+                    placeholder="免責事項（任意）" value={newDisclaimer} rows={2}
+                    onChange={(e) => setNewDisclaimer(e.target.value)}
+                    className="resize-y rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                      📷 カメラで撮影
+                      <input type="file" accept="image/*" className="hidden"
+                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
+                        onChange={(e) => { appendNewFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+                    </label>
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                      🖼 写真を追加
+                      <input type="file" accept="image/*" multiple className="hidden"
+                        onChange={(e) => { appendNewFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+                    </label>
+                  </div>
+                  <div
+                    className={`rounded-xl border-2 border-dashed p-2 transition-colors ${newDragOver ? "border-blue-400 bg-blue-50" : "border-zinc-200 bg-zinc-50"}`}
+                    onDragOver={(e) => { e.preventDefault(); setNewDragOver(true); }}
+                    onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setNewDragOver(false); }}
+                    onDrop={(e) => { e.preventDefault(); setNewDragOver(false); appendNewFiles(Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"))); }}
+                  >
+                    {newPreviews.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {newPreviews.map((url, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={i} src={url} alt="" style={{ aspectRatio: "4/3" }} className="w-full rounded object-cover" />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="py-6 text-center text-xs text-zinc-400">
+                        {newDragOver ? "ここにドロップ" : "ここに写真をドラッグ＆ドロップ"}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={submitNewItem} disabled={!newPlace.trim()}
+                      className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-40">
+                      追加して保存
+                    </button>
+                    <button type="button" onClick={resetNewItem}
+                      className="rounded-lg border border-zinc-200 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-50">
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
+            {!addingItem && (
+              <div className="no-print py-4 text-center">
+                <button type="button" onClick={() => setAddingItem(true)}
+                  className="rounded-lg border border-dashed border-zinc-300 px-5 py-2 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-700">
+                  ＋ 撮影場所を追加
+                </button>
+              </div>
+            )}
           </main>
 
           {/* 図面（報告書の最後） */}

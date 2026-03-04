@@ -166,6 +166,21 @@ export async function createDraft(params: {
   return draft;
 }
 
+export async function addItemToDraft(
+  draftId: string,
+  item: DraftItem,
+): Promise<boolean> {
+  await ensureDirs();
+  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+  const idx = raws.findIndex((d) => String(d.id) === String(draftId));
+  if (idx === -1) return false;
+  const items = raws[idx].items as Array<Record<string, unknown>>;
+  items.push(item as unknown as Record<string, unknown>);
+  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+  return true;
+}
+
 export async function addPhotosToItem(
   draftId: string,
   itemId: string,

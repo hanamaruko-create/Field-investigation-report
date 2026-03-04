@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { addPhotosToItem, deleteDraft, getDraft, removePhotoFromItem, storeUpload, updateDraftFloorPlan } from "@/lib/storage";
+import { addItemToDraft, addPhotosToItem, deleteDraft, getDraft, removePhotoFromItem, storeUpload, updateDraftFloorPlan } from "@/lib/storage";
+import crypto from "node:crypto";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 
 export const runtime = "nodejs";
@@ -24,6 +25,21 @@ export async function PATCH(
     const { id } = await context.params;
     const formData = await req.formData();
     const action = formData.get("action")?.toString();
+
+    if (action === "add-item") {
+      const place = formData.get("place")?.toString().trim() ?? "";
+      const disclaimerText = formData.get("disclaimerText")?.toString() ?? "";
+      if (!place) return NextResponse.json({ error: "place required" }, { status: 400 });
+      const files = formData.getAll("photos");
+      const photos = [];
+      for (const file of files) {
+        if (file instanceof File && file.size > 0) photos.push(await storeUpload(file));
+      }
+      const newItem = { id: crypto.randomUUID(), place, disclaimerText, photos };
+      const ok = await addItemToDraft(id, newItem);
+      if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
+      return NextResponse.json({ ok: true, item: newItem });
+    }
 
     if (action === "add-photos") {
       const itemId = formData.get("itemId")?.toString();
