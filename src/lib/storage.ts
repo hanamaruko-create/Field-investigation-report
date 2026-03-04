@@ -166,6 +166,45 @@ export async function createDraft(params: {
   return draft;
 }
 
+export async function addPhotosToItem(
+  draftId: string,
+  itemId: string,
+  photos: StoredPhoto[],
+): Promise<boolean> {
+  await ensureDirs();
+  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+  const draftIdx = raws.findIndex((d) => String(d.id) === String(draftId));
+  if (draftIdx === -1) return false;
+  const items = raws[draftIdx].items as Array<Record<string, unknown>>;
+  const itemIdx = items.findIndex((it) => String(it.id) === String(itemId));
+  if (itemIdx === -1) return false;
+  const existing = (items[itemIdx].photos as StoredPhoto[]) ?? [];
+  items[itemIdx].photos = [...existing, ...photos];
+  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+  return true;
+}
+
+export async function removePhotoFromItem(
+  draftId: string,
+  itemId: string,
+  filename: string,
+): Promise<boolean> {
+  await ensureDirs();
+  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+  const draftIdx = raws.findIndex((d) => String(d.id) === String(draftId));
+  if (draftIdx === -1) return false;
+  const items = raws[draftIdx].items as Array<Record<string, unknown>>;
+  const itemIdx = items.findIndex((it) => String(it.id) === String(itemId));
+  if (itemIdx === -1) return false;
+  const existing = (items[itemIdx].photos as StoredPhoto[]) ?? [];
+  items[itemIdx].photos = existing.filter((p) => p.filename !== filename);
+  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+  try { await fs.unlink(path.join(UPLOADS_DIR, filename)); } catch { /* 既になくても続行 */ }
+  return true;
+}
+
 export async function updateDraftFloorPlan(
   id: string,
   floorPlan: StoredFloorPlan | undefined,

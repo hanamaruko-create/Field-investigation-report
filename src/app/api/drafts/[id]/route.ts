@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteDraft, getDraft, storeUpload, updateDraftFloorPlan } from "@/lib/storage";
+import { addPhotosToItem, deleteDraft, getDraft, removePhotoFromItem, storeUpload, updateDraftFloorPlan } from "@/lib/storage";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 
 export const runtime = "nodejs";
@@ -24,6 +24,28 @@ export async function PATCH(
     const { id } = await context.params;
     const formData = await req.formData();
     const action = formData.get("action")?.toString();
+
+    if (action === "add-photos") {
+      const itemId = formData.get("itemId")?.toString();
+      if (!itemId) return NextResponse.json({ error: "itemId required" }, { status: 400 });
+      const files = formData.getAll("photos");
+      const stored = [];
+      for (const file of files) {
+        if (file instanceof File && file.size > 0) stored.push(await storeUpload(file));
+      }
+      const ok = await addPhotosToItem(id, itemId, stored);
+      if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
+      return NextResponse.json({ ok: true, photos: stored });
+    }
+
+    if (action === "remove-photo") {
+      const itemId = formData.get("itemId")?.toString();
+      const filename = formData.get("filename")?.toString();
+      if (!itemId || !filename) return NextResponse.json({ error: "invalid" }, { status: 400 });
+      const ok = await removePhotoFromItem(id, itemId, filename);
+      if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
+      return NextResponse.json({ ok: true });
+    }
 
     if (action === "delete-floor-plan") {
       const ok = await updateDraftFloorPlan(id, undefined);

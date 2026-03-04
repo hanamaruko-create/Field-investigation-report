@@ -42,6 +42,28 @@ export default function ReportEditor({ draft }: Props) {
   );
   const [showFPModal, setShowFPModal] = useState(false);
 
+  async function addPhotos(itemId: string, files: File[]) {
+    if (!files.length) return;
+    const fd = new FormData();
+    fd.append("action", "add-photos");
+    fd.append("itemId", itemId);
+    for (const f of files) fd.append("photos", f, f.name);
+    const res = await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", body: fd });
+    const json = await res.json() as { ok: boolean; photos?: { filename: string; originalName: string; mimeType: string; size: number }[] };
+    if (json.ok && json.photos) {
+      updateItem(itemId, (prev) => ({ ...prev, photos: [...prev.photos, ...json.photos!] }));
+    }
+  }
+
+  async function removePhoto(itemId: string, filename: string) {
+    const fd = new FormData();
+    fd.append("action", "remove-photo");
+    fd.append("itemId", itemId);
+    fd.append("filename", filename);
+    await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", body: fd });
+    updateItem(itemId, (prev) => ({ ...prev, photos: prev.photos.filter((p) => p.filename !== filename) }));
+  }
+
   async function saveFP(result: FloorPlanResult) {
     const fd = new FormData();
     fd.append("floorPlan", result.file);
@@ -204,16 +226,38 @@ export default function ReportEditor({ draft }: Props) {
                       }}
                     >
                       {item.photos.map((photo) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={photo.filename}
-                          src={`/api/uploads/${photo.filename}`}
-                          alt={`${item.place} の写真`}
-                          style={{ aspectRatio: "4/3" }}
-                          className="w-full rounded object-cover"
-                        />
+                        <div key={photo.filename} className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/api/uploads/${photo.filename}`}
+                            alt={`${item.place} の写真`}
+                            style={{ aspectRatio: "4/3" }}
+                            className="w-full rounded object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(item.id, photo.filename)}
+                            className="no-print absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80"
+                          >
+                            ×
+                          </button>
+                        </div>
                       ))}
                     </div>
+                  </div>
+                  {/* 写真追加ボタン（印刷時非表示） */}
+                  <div className="no-print mt-2 flex flex-wrap gap-2">
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                      📷 カメラで撮影
+                      <input type="file" accept="image/*" className="hidden"
+                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
+                        onChange={(e) => { addPhotos(item.id, Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+                    </label>
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                      🖼 写真を追加
+                      <input type="file" accept="image/*" multiple className="hidden"
+                        onChange={(e) => { addPhotos(item.id, Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+                    </label>
                   </div>
 
                   {/* 免責文 */}
