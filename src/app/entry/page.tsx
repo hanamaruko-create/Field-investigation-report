@@ -393,8 +393,8 @@ export default function EntryPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
+                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
                         onChange={(e) => {
                           const added = Array.from(e.target.files ?? []);
                           e.target.value = "";
