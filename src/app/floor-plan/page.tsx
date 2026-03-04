@@ -115,9 +115,9 @@ export default function FloorPlanPage() {
       if (d.imageDataUrl) setImageDataUrl(d.imageDataUrl);
       if (d.imageSize)    setImageSize(d.imageSize);
       // seq がない旧データは index で補完（アノテーション → 消しゴムの順で番号付け）
-      const anns = (d.annotations ?? []).map((a, i) => ({ seq: i, ...a } as Annotation));
+      const anns = (d.annotations ?? []).map((a, i) => ({ ...a, seq: (a as { seq?: number }).seq ?? i } as Annotation));
       const esLen = anns.length;
-      const erss = (d.eraserStrokes ?? []).map((s, i) => ({ seq: esLen + i, ...s } as EraserStroke));
+      const erss = (d.eraserStrokes ?? []).map((s, i) => ({ ...s, seq: (s as { seq?: number }).seq ?? (esLen + i) } as EraserStroke));
       if (anns.length)  setAnnotations(anns);
       if (erss.length)  setEraserStrokes(erss);
       seqRef.current = esLen + erss.length;
