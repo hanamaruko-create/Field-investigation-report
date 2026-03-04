@@ -9,6 +9,7 @@ import {
 import { CONTRACTOR_NAME, PROJECT_NAME, SURVEY_CONTENT_OPTIONS } from "@/lib/constants";
 import FloorPlanModal, { type FloorPlanResult } from "./FloorPlanModal";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
+import { randomUUID } from "@/lib/uuid";
 
 type EntryItem = {
   id: string;
@@ -26,7 +27,7 @@ function todayYyyyMmDd() {
 
 function newItem(): EntryItem {
   return {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     place: "",
     codes: [],
     disclaimerText: "",

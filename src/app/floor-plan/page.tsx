@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { randomUUID } from "@/lib/uuid";
 
 // ── 型定義 ──────────────────────────────────────────────────────────────────
 
@@ -217,7 +218,7 @@ export default function FloorPlanPage() {
     if (tool === "eraser") {
       if (isErasing && currentEraserPoints.length > 0) {
         const w = eraserWidths[eraserSize];
-        setEraserStrokes(prev => [...prev, { id: crypto.randomUUID(), seq: nextSeq(), points: currentEraserPoints, width: w }]);
+        setEraserStrokes(prev => [...prev, { id: randomUUID(), seq: nextSeq(), points: currentEraserPoints, width: w }]);
       }
       setCurrentEraserPoints([]);
       setIsErasing(false);
@@ -239,7 +240,7 @@ export default function FloorPlanPage() {
     const w = Math.abs(cx - sx), h = Math.abs(cy - sy);
 
     if (w > 5 || h > 5) {
-      const id = crypto.randomUUID();
+      const id = randomUUID();
       const seq = nextSeq();
       let newA: Annotation | null = null;
       switch (tool) {
@@ -267,7 +268,7 @@ export default function FloorPlanPage() {
   function commitText() {
     if (!pendingText || !textInput.trim()) { setPendingText(null); return; }
     setAnnotations(prev => [...prev, {
-      id: crypto.randomUUID(), seq: nextSeq(), type: "text",
+      id: randomUUID(), seq: nextSeq(), type: "text",
       x: pendingText.x, y: pendingText.y,
       text: textInput.trim(), color,
     }]);

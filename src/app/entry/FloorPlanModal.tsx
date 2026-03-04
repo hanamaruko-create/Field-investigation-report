@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
+import { randomUUID } from "@/lib/uuid";
 
 // ─── ローカル型 ───────────────────────────────────────────────────────────────
 
@@ -187,7 +188,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
   function onSvgMouseUp(e: React.MouseEvent<SVGSVGElement>) {
     if (tool === "eraser") {
       if (isErasing && currentEraserPoints.length > 0) {
-        setEraserStrokes(prev => [...prev, { id: crypto.randomUUID(), seq: nextSeq(), points: currentEraserPoints, width: eraserWidths[eraserSize] }]);
+        setEraserStrokes(prev => [...prev, { id: randomUUID(), seq: nextSeq(), points: currentEraserPoints, width: eraserWidths[eraserSize] }]);
       }
       setCurrentEraserPoints([]); setIsErasing(false); return;
     }
@@ -198,7 +199,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     const minX = Math.min(sx, cx), minY = Math.min(sy, cy);
     const w = Math.abs(cx - sx), h = Math.abs(cy - sy);
     if (w > 5 || h > 5) {
-      const id = crypto.randomUUID(), seq = nextSeq();
+      const id = randomUUID(), seq = nextSeq();
       let newA: Annotation | null = null;
       switch (tool) {
         case "rect":    newA = { id, seq, type: "rect",    x: minX, y: minY, w, h, label: "", color }; break;
@@ -221,7 +222,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
 
   function commitText() {
     if (!pendingText || !textInput.trim()) { setPendingText(null); return; }
-    setAnnotations(prev => [...prev, { id: crypto.randomUUID(), seq: nextSeq(), type: "text", x: pendingText.x, y: pendingText.y, text: textInput.trim(), color }]);
+    setAnnotations(prev => [...prev, { id: randomUUID(), seq: nextSeq(), type: "text", x: pendingText.x, y: pendingText.y, text: textInput.trim(), color }]);
     setPendingText(null); setTextInput("");
   }
 
