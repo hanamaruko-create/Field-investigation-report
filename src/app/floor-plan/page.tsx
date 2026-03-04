@@ -8,7 +8,7 @@ type RectA    = { id: string; seq: number; type: "rect";    x: number;  y: numbe
 type EllipseA = { id: string; seq: number; type: "ellipse"; cx: number; cy: number; rx: number; ry: number; label: string; color: string };
 type LineA    = { id: string; seq: number; type: "line";    x1: number; y1: number; x2: number; y2: number; color: string };
 type ArrowA   = { id: string; seq: number; type: "arrow";   x1: number; y1: number; x2: number; y2: number; color: string };
-type TextA    = { id: string; seq: number; type: "text";    x: number;  y: number;  text: string;            color: string };
+type TextA    = { id: string; seq: number; type: "text";    x: number;  y: number;  text: string; fontSize?: number; color: string };
 type Annotation = RectA | EllipseA | LineA | ArrowA | TextA;
 
 type EraserStroke = { id: string; seq: number; points: { x: number; y: number }[]; width: number };
@@ -287,6 +287,14 @@ export default function FloorPlanPage() {
     );
   }
 
+  function updateText(id: string, text: string) {
+    setAnnotations(prev => prev.map(a => (a.id === id && a.type === "text") ? { ...a, text } : a));
+  }
+
+  function updateTextSize(id: string, fontSize: number) {
+    setAnnotations(prev => prev.map(a => (a.id === id && a.type === "text") ? { ...a, fontSize } : a));
+  }
+
   // ── サイズ系 ─────────────────────────────────────────────────────────
 
   const fs = Math.max(imageSize.w, imageSize.h) * 0.022;
@@ -355,12 +363,16 @@ export default function FloorPlanPage() {
             <Arrowhead x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} color={a.color} size={fs*0.8} />
           </g>
         );
-      case "text":
+      case "text": {
+        const tfs = a.fontSize ?? fs;
         return (
-          <text key={a.id} x={a.x} y={a.y} {...txt} style={{ cursor: cur, userSelect: "none" }} textDecoration={isSel ? "underline" : undefined} onMouseDown={onMD}>
+          <text key={a.id} x={a.x} y={a.y}
+            fill={a.color} fontSize={tfs} fontWeight="700" paintOrder="stroke" stroke="white" strokeWidth={tfs * 0.25}
+            style={{ cursor: cur, userSelect: "none" }} textDecoration={isSel ? "underline" : undefined} onMouseDown={onMD}>
             {a.text}
           </text>
         );
+      }
     }
   }
 
@@ -445,6 +457,27 @@ export default function FloorPlanPage() {
                     onChange={(e) => updateLabel(selectedId!, e.target.value)}
                     placeholder="ラベル"
                     className="h-8 w-28 rounded-lg border border-zinc-200 px-2 text-sm outline-none focus:border-zinc-400" />
+                )}
+                {selectedA.type === "text" && (
+                  <>
+                    <input type="text" value={selectedA.text}
+                      onChange={(e) => updateText(selectedId!, e.target.value)}
+                      placeholder="テキスト"
+                      className="h-8 w-36 rounded-lg border border-zinc-200 px-2 text-sm outline-none focus:border-zinc-400" />
+                    <span className="text-xs text-zinc-500">サイズ：</span>
+                    {(["S", "M", "L", "XL"] as const).map((sz) => {
+                      const size = sz === "S" ? fs * 0.7 : sz === "M" ? fs : sz === "L" ? fs * 1.5 : fs * 2.5;
+                      const active = Math.round((selectedA.fontSize ?? fs) * 10) === Math.round(size * 10);
+                      return (
+                        <button key={sz} type="button" onClick={() => updateTextSize(selectedId!, size)}
+                          className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                            active ? "bg-zinc-900 text-white" : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                          }`}>
+                          {sz}
+                        </button>
+                      );
+                    })}
+                  </>
                 )}
                 <button type="button" onClick={deleteSelected}
                   className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">

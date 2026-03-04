@@ -7,6 +7,8 @@ import {
   buildDisclaimerTextFromCodes,
 } from "@/lib/disclaimers";
 import { CONTRACTOR_NAME, PROJECT_NAME, SURVEY_CONTENT_OPTIONS } from "@/lib/constants";
+import FloorPlanModal, { type FloorPlanResult } from "./FloorPlanModal";
+import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 
 type EntryItem = {
   id: string;
@@ -43,6 +45,13 @@ export default function EntryPage() {
   const [items, setItems] = useState<EntryItem[]>([newItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 報告書全体で1枚の図面
+  const [floorPlanFile,         setFloorPlanFile]         = useState<File | undefined>();
+  const [floorPlanImageDataUrl, setFloorPlanImageDataUrl] = useState<string | undefined>();
+  const [floorPlanImageSize,    setFloorPlanImageSize]    = useState<{ w: number; h: number } | undefined>();
+  const [floorPlanAnnotations,  setFloorPlanAnnotations]  = useState<Annotation[] | undefined>();
+  const [floorPlanEraserStrokes,setFloorPlanEraserStrokes]= useState<EraserStroke[] | undefined>();
+  const [showFloorPlanModal,    setShowFloorPlanModal]    = useState(false);
 
   const knownCodes = useMemo(
     () => Object.keys(DISCLAIMER_TEXT_BY_CODE).sort(),
@@ -100,6 +109,16 @@ export default function EntryPage() {
       }
       for (const file of allFiles) {
         formData.append("photos", file, file.name);
+      }
+      // 図面ファイル（報告書全体で1枚）
+      if (floorPlanFile && floorPlanImageSize) {
+        formData.append("floorPlan", floorPlanFile, floorPlanFile.name);
+        formData.set("floorPlanData", JSON.stringify({
+          imageWidth: floorPlanImageSize.w,
+          imageHeight: floorPlanImageSize.h,
+          annotations: floorPlanAnnotations ?? [],
+          eraserStrokes: floorPlanEraserStrokes ?? [],
+        }));
       }
 
       const res = await fetch("/api/drafts", {
@@ -365,42 +384,67 @@ export default function EntryPage() {
                 </label>
 
                 <div className="flex flex-col gap-2 md:col-span-2">
-                  <div className="flex items-end justify-between gap-3">
-                    <label className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-zinc-700">写真</span>
+                  <span className="text-sm font-medium text-zinc-700">写真</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* カメラ直接起動（スマホ） */}
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
+                      📷 カメラで撮影
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                          const added = Array.from(e.target.files ?? []);
+                          e.target.value = "";
+                          if (!added.length) return;
+                          updateItem(it.id, (prev) => ({
+                            ...prev,
+                            files: [...prev.files, ...added],
+                            previewUrls: [...prev.previewUrls, ...added.map((f) => URL.createObjectURL(f))],
+                          }));
+                        }}
+                      />
+                    </label>
+                    {/* ライブラリ／ファイル選択（複数可） */}
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
+                      🖼 ライブラリから選択
                       <input
                         type="file"
                         accept="image/*"
                         multiple
-                        className="block w-full text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-900 hover:file:bg-zinc-200"
+                        className="hidden"
                         onChange={(e) => {
-                          const files = e.target.files;
-                          if (!files || files.length === 0) {
-                            updateItem(it.id, (prev) => {
-                              prev.previewUrls.forEach((url) => URL.revokeObjectURL(url));
-                              return { ...prev, files: [], previewUrls: [] };
-                            });
-                            return;
-                          }
-
-                          const fileList = Array.from(files);
-                          updateItem(it.id, (prev) => {
-                            prev.previewUrls.forEach((url) => URL.revokeObjectURL(url));
-                            const previewUrls = fileList.map((f) => URL.createObjectURL(f));
-                            return { ...prev, files: fileList, previewUrls };
-                          });
+                          const added = Array.from(e.target.files ?? []);
+                          e.target.value = "";
+                          if (!added.length) return;
+                          updateItem(it.id, (prev) => ({
+                            ...prev,
+                            files: [...prev.files, ...added],
+                            previewUrls: [...prev.previewUrls, ...added.map((f) => URL.createObjectURL(f))],
+                          }));
                         }}
                       />
                     </label>
-                    {it.files.length > 0 ? (
-                      <div className="text-xs text-zinc-500">
-                        {it.files.length}枚 / 合計{" "}
-                        {Math.round(
-                          it.files.reduce((sum, f) => sum + f.size, 0) / 1024,
-                        )}{" "}
-                        KB
-                      </div>
-                    ) : null}
+                    {it.files.length > 0 && (
+                      <>
+                        <span className="text-xs text-zinc-500">
+                          {it.files.length}枚 / {Math.round(it.files.reduce((s, f) => s + f.size, 0) / 1024)} KB
+                        </span>
+                        <button
+                          type="button"
+                          className="text-xs text-red-500 hover:text-red-700"
+                          onClick={() =>
+                            updateItem(it.id, (prev) => {
+                              prev.previewUrls.forEach((url) => URL.revokeObjectURL(url));
+                              return { ...prev, files: [], previewUrls: [] };
+                            })
+                          }
+                        >
+                          クリア
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   {it.previewUrls.length > 0 ? (
@@ -421,11 +465,80 @@ export default function EntryPage() {
                     </div>
                   )}
                 </div>
+
               </div>
             </section>
           ))}
         </div>
       </div>
+
+      {/* 図面セクション（報告書全体で1枚・最後に追加） */}
+      <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <div className="text-sm font-semibold text-zinc-900">図面（任意）</div>
+            <div className="text-xs text-zinc-500">報告書の最後に1枚追加されます</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFloorPlanModal(true)}
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+            >
+              {floorPlanFile ? "図面を編集" : "図面を追加"}
+            </button>
+            {floorPlanFile && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFloorPlanFile(undefined);
+                  setFloorPlanImageDataUrl(undefined);
+                  setFloorPlanImageSize(undefined);
+                  setFloorPlanAnnotations(undefined);
+                  setFloorPlanEraserStrokes(undefined);
+                }}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                削除
+              </button>
+            )}
+          </div>
+        </div>
+        {floorPlanImageDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={floorPlanImageDataUrl}
+            alt="図面プレビュー"
+            className="max-h-48 w-auto rounded-lg border border-zinc-200 object-contain"
+          />
+        )}
+      </section>
+
+      {/* 図面アノテーションモーダル */}
+      {showFloorPlanModal && (
+        <FloorPlanModal
+          initial={
+            floorPlanFile
+              ? {
+                  file: floorPlanFile,
+                  imageDataUrl: floorPlanImageDataUrl!,
+                  imageSize: floorPlanImageSize!,
+                  annotations: floorPlanAnnotations ?? [],
+                  eraserStrokes: floorPlanEraserStrokes ?? [],
+                }
+              : undefined
+          }
+          onConfirm={(result: FloorPlanResult) => {
+            setFloorPlanFile(result.file);
+            setFloorPlanImageDataUrl(result.imageDataUrl);
+            setFloorPlanImageSize(result.imageSize);
+            setFloorPlanAnnotations(result.annotations);
+            setFloorPlanEraserStrokes(result.eraserStrokes);
+            setShowFloorPlanModal(false);
+          }}
+          onCancel={() => setShowFloorPlanModal(false)}
+        />
+      )}
     </div>
   );
 }

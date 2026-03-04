@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { CONTRACTOR_NAME, PROJECT_NAME } from "@/lib/constants";
+import type { StoredFloorPlan } from "@/lib/floorPlanTypes";
 
 export type DraftItemInput = {
   place: string;
@@ -33,6 +34,7 @@ export type Draft = {
   surveyContent: string[]; // 調査内容（複数）
   createdAt: string;
   items: DraftItem[];
+  floorPlan?: StoredFloorPlan;
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -135,6 +137,7 @@ export async function createDraft(params: {
     disclaimerText?: string;
     photos: StoredPhoto[];
   }>;
+  floorPlan?: StoredFloorPlan;
 }): Promise<Draft> {
   await ensureDirs();
   const raws = await readJsonFile<Record<string, unknown>[]>(DRAFTS_JSON, []);
@@ -155,11 +158,30 @@ export async function createDraft(params: {
       disclaimerText: it.disclaimerText,
       photos: it.photos,
     })),
+    floorPlan: params.floorPlan,
   };
 
   drafts.push(draft);
   await writeJsonFile(DRAFTS_JSON, drafts);
   return draft;
+}
+
+export async function updateDraftFloorPlan(
+  id: string,
+  floorPlan: StoredFloorPlan | undefined,
+): Promise<boolean> {
+  await ensureDirs();
+  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+  const idx = raws.findIndex((d) => String(d.id) === String(id));
+  if (idx === -1) return false;
+  if (floorPlan === undefined) {
+    delete raws[idx].floorPlan;
+  } else {
+    raws[idx].floorPlan = floorPlan;
+  }
+  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+  return true;
 }
 
 export async function deleteDraft(id: string): Promise<boolean> {

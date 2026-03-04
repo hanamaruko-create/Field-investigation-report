@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createDraft, listDrafts, storeUpload, type DraftItemInput } from "@/lib/storage";
+import type { StoredFloorPlan } from "@/lib/floorPlanTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,11 +72,34 @@ export async function POST(req: Request) {
     });
   }
 
+  // 図面ファイルを処理（報告書全体で1枚）
+  let draftFloorPlan: StoredFloorPlan | undefined;
+  const fpFile = formData.get("floorPlan");
+  const fpDataRaw = String(formData.get("floorPlanData") ?? "null");
+  if (fpFile instanceof File) {
+    try {
+      const fpData = JSON.parse(fpDataRaw) as {
+        imageWidth: number; imageHeight: number;
+        annotations: StoredFloorPlan["annotations"];
+        eraserStrokes: StoredFloorPlan["eraserStrokes"];
+      };
+      const stored = await storeUpload(fpFile);
+      draftFloorPlan = {
+        filename: stored.filename,
+        imageWidth: fpData.imageWidth,
+        imageHeight: fpData.imageHeight,
+        annotations: fpData.annotations,
+        eraserStrokes: fpData.eraserStrokes,
+      };
+    } catch { /* ignore */ }
+  }
+
   const draft = await createDraft({
     projectName,
     surveyDate: surveyDateRaw,
     surveyContent,
     items: storedItems,
+    floorPlan: draftFloorPlan,
   });
 
   return NextResponse.json({ draft }, { status: 201 });

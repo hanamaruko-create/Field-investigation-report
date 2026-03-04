@@ -34,12 +34,6 @@ export default function Home() {
         >
           下書き一覧
         </Link>
-        <Link
-          href="/floor-plan"
-          className="rounded-xl border border-zinc-300 px-6 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          図面アノテーション
-        </Link>
       </div>
 
       {/* フッターとして会社名や住所を入れるスペース */}
