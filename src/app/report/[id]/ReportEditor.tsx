@@ -5,6 +5,7 @@ import type { Draft, DraftItem } from "@/lib/storage";
 import { CONTRACTOR_NAME, COMPANY_ADDRESS, COMPANY_TEL, COMPANY_FAX } from "@/lib/constants";
 import FloorPlanModal, { type FloorPlanResult } from "@/app/entry/FloorPlanModal";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
+import { openCamera } from "@/lib/openCamera";
 
 // 写真枚数に応じた列数を決定
 function photoCols(n: number): number {
@@ -291,12 +292,13 @@ export default function ReportEditor({ draft }: Props) {
                   </div>
                   {/* 写真追加ボタン（印刷時非表示） */}
                   <div className="no-print mt-2 flex flex-wrap gap-2">
-                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                      onClick={() => openCamera((files) => addPhotos(item.id, files))}
+                    >
                       📷 カメラで撮影
-                      <input type="file" accept="image/*" className="hidden"
-                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
-                        onChange={(e) => { addPhotos(item.id, Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-                    </label>
+                    </button>
                     <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                       🖼 写真を追加
                       <input type="file" accept="image/*" multiple className="hidden"
@@ -334,12 +336,13 @@ export default function ReportEditor({ draft }: Props) {
                     className="resize-y rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
                   />
                   <div className="flex flex-wrap gap-2">
-                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                      onClick={() => openCamera(appendNewFiles)}
+                    >
                       📷 カメラで撮影
-                      <input type="file" accept="image/*" className="hidden"
-                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
-                        onChange={(e) => { appendNewFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-                    </label>
+                    </button>
                     <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                       🖼 写真を追加
                       <input type="file" accept="image/*" multiple className="hidden"
