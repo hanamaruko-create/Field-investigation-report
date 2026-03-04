@@ -292,13 +292,12 @@ export default function ReportEditor({ draft }: Props) {
                   </div>
                   {/* 写真追加ボタン（印刷時非表示） */}
                   <div className="no-print mt-2 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                      onClick={() => openCamera((files) => addPhotos(item.id, files))}
-                    >
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                       📷 カメラで撮影
-                    </button>
+                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
+                        onChange={(e) => { addPhotos(item.id, Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+                    </label>
                     <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                       🖼 写真を追加
                       <input type="file" accept="image/*" multiple className="hidden"
@@ -336,13 +335,12 @@ export default function ReportEditor({ draft }: Props) {
                     className="resize-y rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
                   />
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-                      onClick={() => openCamera(appendNewFiles)}
-                    >
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                       📷 カメラで撮影
-                    </button>
+                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
+                        onChange={(e) => { appendNewFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+                    </label>
                     <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                       🖼 写真を追加
                       <input type="file" accept="image/*" multiple className="hidden"

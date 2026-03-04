@@ -393,13 +393,17 @@ export default function EntryPage() {
                   <span className="text-sm font-medium text-zinc-700">写真</span>
                   <div className="flex flex-wrap items-center gap-2">
                     {/* カメラ直接起動（スマホ） */}
-                    <button
-                      type="button"
-                      className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
-                      onClick={() => openCamera((files) => appendFiles(it.id, files))}
-                    >
+                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
                       📷 カメラで撮影
-                    </button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
+                        onChange={(e) => { appendFiles(it.id, Array.from(e.target.files ?? [])); e.target.value = ""; }}
+                      />
+                    </label>
                     {/* ライブラリ／ファイル選択（複数可） */}
                     <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
                       🖼 ライブラリから選択

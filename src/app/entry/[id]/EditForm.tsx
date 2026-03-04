@@ -293,13 +293,12 @@ export default function EditForm({ draft }: { draft: Draft }) {
                   <div className="flex flex-col gap-2 md:col-span-2">
                     <span className="text-sm font-medium text-zinc-700">写真</span>
                     <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
-                        onClick={() => openCamera((files) => appendFiles(idx, files))}
-                      >
+                      <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
                         📷 カメラで撮影
-                      </button>
+                        <input type="file" accept="image/*" capture="environment" className="hidden"
+                          ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
+                          onChange={(e) => { appendFiles(idx, Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+                      </label>
                       <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
                         🖼 ライブラリから選択
                         <input type="file" accept="image/*" multiple className="hidden"
