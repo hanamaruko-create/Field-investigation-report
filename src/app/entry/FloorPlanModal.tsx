@@ -11,7 +11,8 @@ type Tool     = DrawTool | "select" | "eraser";
 
 type DragState =
   | { mode: "draw"; sx: number; sy: number; cx: number; cy: number }
-  | { mode: "move"; id: string; sx: number; sy: number; orig: Annotation };
+  | { mode: "move";   id: string; handle?: undefined; sx: number; sy: number; orig: Annotation }
+  | { mode: "resize"; id: string; handle: string;     sx: number; sy: number; orig: Annotation };
 
 // ─── 定数 ─────────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
 
   const fs = Math.max(imageSize.w, imageSize.h) * 0.022;
   const sw = fs * 0.15;
+  const hs = fs * 0.5; // リサイズハンドルの半径
   const eraserWidths = { s: fs * 0.9, m: fs * 2, l: fs * 4 };
 
   // ─── ファイル読み込み ─────────────────────────────────────────────────────
@@ -180,9 +182,12 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     if (!drag) return;
     if (drag.mode === "draw") {
       setDrag({ ...drag, cx: p.x, cy: p.y });
-    } else {
+    } else if (drag.mode === "move") {
       const dx = p.x - drag.sx, dy = p.y - drag.sy;
       setAnnotations(prev => prev.map(a => a.id === drag.id ? translate(drag.orig, dx, dy) : a));
+    } else if (drag.mode === "resize") {
+      const dx = p.x - drag.sx, dy = p.y - drag.sy;
+      setAnnotations(prev => prev.map(a => a.id === drag.id ? applyResize(drag.orig, drag.handle, dx, dy) : a));
     }
   }
 
@@ -245,6 +250,45 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     setAnnotations(prev => prev.map(a => (a.id === id && a.type === "text") ? { ...a, fontSize } : a));
   }
 
+  function updateColor(id: string, newColor: string) {
+    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, color: newColor } : a));
+  }
+
+  function applyResize(orig: Annotation, handle: string, dx: number, dy: number): Annotation {
+    const minS = fs * 2, minR = fs;
+    switch (orig.type) {
+      case "rect": {
+        let { x, y, w, h } = orig;
+        if (handle === "nw") { x = orig.x + dx; y = orig.y + dy; w = Math.max(minS, orig.w - dx); h = Math.max(minS, orig.h - dy); }
+        if (handle === "ne") { y = orig.y + dy; w = Math.max(minS, orig.w + dx); h = Math.max(minS, orig.h - dy); }
+        if (handle === "se") { w = Math.max(minS, orig.w + dx); h = Math.max(minS, orig.h + dy); }
+        if (handle === "sw") { x = orig.x + dx; w = Math.max(minS, orig.w - dx); h = Math.max(minS, orig.h + dy); }
+        return { ...orig, x, y, w, h };
+      }
+      case "ellipse": {
+        const { cx, cy, rx, ry } = orig;
+        if (handle === "nw") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx - dx/2), ry: Math.max(minR, ry - dy/2) };
+        if (handle === "ne") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx + dx/2), ry: Math.max(minR, ry - dy/2) };
+        if (handle === "se") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx + dx/2), ry: Math.max(minR, ry + dy/2) };
+        if (handle === "sw") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx - dx/2), ry: Math.max(minR, ry + dy/2) };
+        return orig;
+      }
+      case "line":
+      case "arrow":
+        if (handle === "p1") return { ...orig, x1: orig.x1 + dx, y1: orig.y1 + dy };
+        if (handle === "p2") return { ...orig, x2: orig.x2 + dx, y2: orig.y2 + dy };
+        return orig;
+      default:
+        return orig;
+    }
+  }
+
+  function onHandleMouseDown(id: string, handle: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const orig = annotations.find(a => a.id === id)!;
+    setDrag({ mode: "resize", id, handle, sx: toSvg(e).x, sy: toSvg(e).y, orig });
+  }
+
   // ─── 描画 ─────────────────────────────────────────────────────────────────
 
   function renderDraft() {
@@ -281,6 +325,18 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
           <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
             <rect x={a.x} y={a.y} width={a.w} height={a.h} fill={isSel ? `${a.color}22` : "none"} stroke={a.color} strokeWidth={sw2} strokeDasharray={dash} />
             {a.label && <text x={a.x+sw} y={a.y-sw} {...txt}>{a.label}</text>}
+            {isSel && tool === "select" && (
+              [["nw", a.x,      a.y      ] as const,
+               ["ne", a.x+a.w, a.y      ] as const,
+               ["se", a.x+a.w, a.y+a.h  ] as const,
+               ["sw", a.x,     a.y+a.h  ] as const,
+              ].map(([h, hx, hy]) => (
+                <rect key={h} x={hx-hs} y={hy-hs} width={hs*2} height={hs*2}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: `${h}-resize` }}
+                  onMouseDown={(e) => onHandleMouseDown(a.id, h, e)} />
+              ))
+            )}
           </g>
         );
       case "ellipse":
@@ -288,6 +344,18 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
           <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
             <ellipse cx={a.cx} cy={a.cy} rx={a.rx} ry={a.ry} fill={isSel ? `${a.color}22` : "none"} stroke={a.color} strokeWidth={sw2} strokeDasharray={dash} />
             {a.label && <text x={a.cx-a.rx+sw} y={a.cy-a.ry-sw} {...txt}>{a.label}</text>}
+            {isSel && tool === "select" && (
+              [["nw", a.cx-a.rx, a.cy-a.ry] as const,
+               ["ne", a.cx+a.rx, a.cy-a.ry] as const,
+               ["se", a.cx+a.rx, a.cy+a.ry] as const,
+               ["sw", a.cx-a.rx, a.cy+a.ry] as const,
+              ].map(([h, hx, hy]) => (
+                <rect key={h} x={hx-hs} y={hy-hs} width={hs*2} height={hs*2}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: `${h}-resize` }}
+                  onMouseDown={(e) => onHandleMouseDown(a.id, h, e)} />
+              ))
+            )}
           </g>
         );
       case "line":
@@ -295,6 +363,14 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
           <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke="transparent" strokeWidth={sw2*5} />
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke={a.color} strokeWidth={sw2} strokeLinecap="round" strokeDasharray={dash} />
+            {isSel && tool === "select" && (
+              [["p1", a.x1, a.y1] as const, ["p2", a.x2, a.y2] as const].map(([h, hx, hy]) => (
+                <circle key={h} cx={hx} cy={hy} r={hs}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: "move" }}
+                  onMouseDown={(e) => onHandleMouseDown(a.id, h, e)} />
+              ))
+            )}
           </g>
         );
       case "arrow":
@@ -303,6 +379,14 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke="transparent" strokeWidth={sw2*5} />
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke={a.color} strokeWidth={sw2} strokeLinecap="round" strokeDasharray={dash} />
             <Arrowhead x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} color={a.color} size={fs*0.8} />
+            {isSel && tool === "select" && (
+              [["p1", a.x1, a.y1] as const, ["p2", a.x2, a.y2] as const].map(([h, hx, hy]) => (
+                <circle key={h} cx={hx} cy={hy} r={hs}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: "move" }}
+                  onMouseDown={(e) => onHandleMouseDown(a.id, h, e)} />
+              ))
+            )}
           </g>
         );
       case "text": {
@@ -453,6 +537,15 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
 
             {selectedA && tool === "select" && (
               <>
+                <span className="text-zinc-300">|</span>
+                <span className="text-xs text-zinc-500">色：</span>
+                <div className="flex gap-1.5">
+                  {COLORS.map(c => (
+                    <button key={c} type="button" onClick={() => updateColor(selectedId!, c)}
+                      className="h-6 w-6 rounded-full transition"
+                      style={{ backgroundColor: c, outline: selectedA.color === c ? `2.5px solid ${c}` : undefined, outlineOffset: "2px" }} />
+                  ))}
+                </div>
                 <span className="text-zinc-300">|</span>
                 {(selectedA.type === "rect" || selectedA.type === "ellipse") && (
                   <input type="text" value={selectedA.label}
