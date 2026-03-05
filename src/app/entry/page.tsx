@@ -475,7 +475,6 @@ export default function EntryPage() {
             </section>
           ))}
         </div>
-      </div>
 
       {/* 図面セクション（複数対応） */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -533,6 +532,7 @@ export default function EntryPage() {
           />
         );
       })()}
+      </div>
     </div>
   );
 }

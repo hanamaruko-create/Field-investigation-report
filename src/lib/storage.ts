@@ -45,6 +45,21 @@ async function ensureDirs() {
   await fs.mkdir(UPLOADS_DIR, { recursive: true });
 }
 
+// ─── 書き込み用 mutex ────────────────────────────────────────────────────────
+let writeLock: Promise<void> = Promise.resolve();
+
+async function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = writeLock;
+  let release!: () => void;
+  writeLock = new Promise<void>((resolve) => { release = resolve; });
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
 async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
   try {
     const raw = await fs.readFile(filePath, "utf8");
@@ -61,18 +76,23 @@ async function writeJsonFile(filePath: string, value: unknown) {
 
 // 旧データ (photo: single) を新形式 (photos: array) にマイグレーション
 function migrateDraftItem(raw: Record<string, unknown>): DraftItem {
-  if (Array.isArray(raw.photos)) {
-    return raw as unknown as DraftItem;
-  }
-  // 旧形式: photo が単体で存在する場合
-  const photos = raw.photo ? [raw.photo as StoredPhoto] : [];
-  const { photo: _removed, ...rest } = raw;
-  void _removed;
-  return { ...(rest as Omit<DraftItem, "photos">), photos };
+  const photos: StoredPhoto[] = Array.isArray(raw.photos)
+    ? (raw.photos as StoredPhoto[])
+    : raw.photo
+      ? [raw.photo as StoredPhoto]
+      : [];
+  return {
+    id:             typeof raw.id === "string"    ? raw.id            : String(raw.id ?? ""),
+    place:          typeof raw.place === "string" ? raw.place         : "",
+    code:           typeof raw.code === "string"  ? raw.code          : undefined,
+    disclaimerText: typeof raw.disclaimerText === "string" ? raw.disclaimerText : undefined,
+    photos,
+  };
 }
 
 function migrateDraft(raw: Record<string, unknown>): Draft {
-  const items = (raw.items as Array<Record<string, unknown>>).map(migrateDraftItem);
+  const rawItems = Array.isArray(raw.items) ? (raw.items as Array<Record<string, unknown>>) : [];
+  const items = rawItems.map(migrateDraftItem);
   // 旧データ (floorPlan: single) → 新形式 (floorPlans: array) に移行
   let floorPlans: StoredFloorPlan[] = [];
   if (Array.isArray(raw.floorPlans)) {
@@ -121,6 +141,10 @@ export async function storeUpload(file: File): Promise<StoredPhoto> {
   const arrayBuffer = await file.arrayBuffer();
   const buf = Buffer.from(arrayBuffer);
 
+  if (buf.length > 20 * 1024 * 1024) {
+    throw new Error("ファイルサイズが大きすぎます（最大 20MB）");
+  }
+
   const ext = safeFileExt(file.name, file.type);
   const filename = `${crypto.randomUUID()}.${ext}`;
   const fullPath = path.join(UPLOADS_DIR, filename);
@@ -148,30 +172,32 @@ export async function createDraft(params: {
   floorPlans?: StoredFloorPlan[];
 }): Promise<Draft> {
   await ensureDirs();
-  const raws = await readJsonFile<Record<string, unknown>[]>(DRAFTS_JSON, []);
-  const drafts = raws.map(migrateDraft);
-  const now = new Date().toISOString();
+  return withLock(async () => {
+    const raws = await readJsonFile<Record<string, unknown>[]>(DRAFTS_JSON, []);
+    const drafts = raws.map(migrateDraft);
+    const now = new Date().toISOString();
 
-  const draft: Draft = {
-    id: crypto.randomUUID(),
-    projectName: params.projectName || PROJECT_NAME,
-    contractorName: CONTRACTOR_NAME,
-    surveyDate: params.surveyDate,
-    surveyContent: params.surveyContent,
-    createdAt: now,
-    items: params.items.map((it) => ({
-      id: it.id ?? crypto.randomUUID(),
-      place: it.place,
-      code: it.code,
-      disclaimerText: it.disclaimerText,
-      photos: it.photos,
-    })),
-    floorPlans: params.floorPlans ?? [],
-  };
+    const draft: Draft = {
+      id: crypto.randomUUID(),
+      projectName: params.projectName || PROJECT_NAME,
+      contractorName: CONTRACTOR_NAME,
+      surveyDate: params.surveyDate,
+      surveyContent: params.surveyContent,
+      createdAt: now,
+      items: params.items.map((it) => ({
+        id: it.id ?? crypto.randomUUID(),
+        place: it.place,
+        code: it.code,
+        disclaimerText: it.disclaimerText,
+        photos: it.photos,
+      })),
+      floorPlans: params.floorPlans ?? [],
+    };
 
-  drafts.push(draft);
-  await writeJsonFile(DRAFTS_JSON, drafts);
-  return draft;
+    drafts.push(draft);
+    await writeJsonFile(DRAFTS_JSON, drafts);
+    return draft;
+  });
 }
 
 export async function deleteUploads(filenames: string[]): Promise<void> {
@@ -196,25 +222,27 @@ export async function updateDraftFull(
   },
 ): Promise<boolean> {
   await ensureDirs();
-  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
-  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
-  const idx = raws.findIndex((d) => String(d.id) === String(id));
-  if (idx === -1) return false;
-  raws[idx] = {
-    ...raws[idx],
-    projectName: params.projectName,
-    surveyDate: params.surveyDate,
-    surveyContent: params.surveyContent,
-    items: params.items.map((it) => ({
-      id: it.id ?? crypto.randomUUID(),
-      place: it.place,
-      code: it.code ?? "",
-      disclaimerText: it.disclaimerText ?? "",
-      photos: it.photos,
-    })),
-  };
-  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
-  return true;
+  return withLock(async () => {
+    const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+    const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+    const idx = raws.findIndex((d) => String(d.id) === String(id));
+    if (idx === -1) return false;
+    raws[idx] = {
+      ...raws[idx],
+      projectName: params.projectName,
+      surveyDate: params.surveyDate,
+      surveyContent: params.surveyContent,
+      items: params.items.map((it) => ({
+        id: it.id ?? crypto.randomUUID(),
+        place: it.place,
+        code: it.code ?? "",
+        disclaimerText: it.disclaimerText ?? "",
+        photos: it.photos,
+      })),
+    };
+    await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+    return true;
+  });
 }
 
 export async function addItemToDraft(
@@ -222,14 +250,16 @@ export async function addItemToDraft(
   item: DraftItem,
 ): Promise<boolean> {
   await ensureDirs();
-  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
-  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
-  const idx = raws.findIndex((d) => String(d.id) === String(draftId));
-  if (idx === -1) return false;
-  const items = raws[idx].items as Array<Record<string, unknown>>;
-  items.push(item as unknown as Record<string, unknown>);
-  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
-  return true;
+  return withLock(async () => {
+    const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+    const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+    const idx = raws.findIndex((d) => String(d.id) === String(draftId));
+    if (idx === -1) return false;
+    const items = raws[idx].items as Array<Record<string, unknown>>;
+    items.push(item as unknown as Record<string, unknown>);
+    await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+    return true;
+  });
 }
 
 export async function addPhotosToItem(
@@ -238,17 +268,19 @@ export async function addPhotosToItem(
   photos: StoredPhoto[],
 ): Promise<boolean> {
   await ensureDirs();
-  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
-  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
-  const draftIdx = raws.findIndex((d) => String(d.id) === String(draftId));
-  if (draftIdx === -1) return false;
-  const items = raws[draftIdx].items as Array<Record<string, unknown>>;
-  const itemIdx = items.findIndex((it) => String(it.id) === String(itemId));
-  if (itemIdx === -1) return false;
-  const existing = (items[itemIdx].photos as StoredPhoto[]) ?? [];
-  items[itemIdx].photos = [...existing, ...photos];
-  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
-  return true;
+  return withLock(async () => {
+    const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+    const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+    const draftIdx = raws.findIndex((d) => String(d.id) === String(draftId));
+    if (draftIdx === -1) return false;
+    const items = raws[draftIdx].items as Array<Record<string, unknown>>;
+    const itemIdx = items.findIndex((it) => String(it.id) === String(itemId));
+    if (itemIdx === -1) return false;
+    const existing = (items[itemIdx].photos as StoredPhoto[]) ?? [];
+    items[itemIdx].photos = [...existing, ...photos];
+    await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+    return true;
+  });
 }
 
 export async function removePhotoFromItem(
@@ -257,18 +289,20 @@ export async function removePhotoFromItem(
   filename: string,
 ): Promise<boolean> {
   await ensureDirs();
-  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
-  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
-  const draftIdx = raws.findIndex((d) => String(d.id) === String(draftId));
-  if (draftIdx === -1) return false;
-  const items = raws[draftIdx].items as Array<Record<string, unknown>>;
-  const itemIdx = items.findIndex((it) => String(it.id) === String(itemId));
-  if (itemIdx === -1) return false;
-  const existing = (items[itemIdx].photos as StoredPhoto[]) ?? [];
-  items[itemIdx].photos = existing.filter((p) => p.filename !== filename);
-  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
-  try { await fs.unlink(path.join(UPLOADS_DIR, filename)); } catch { /* 既になくても続行 */ }
-  return true;
+  return withLock(async () => {
+    const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+    const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+    const draftIdx = raws.findIndex((d) => String(d.id) === String(draftId));
+    if (draftIdx === -1) return false;
+    const items = raws[draftIdx].items as Array<Record<string, unknown>>;
+    const itemIdx = items.findIndex((it) => String(it.id) === String(itemId));
+    if (itemIdx === -1) return false;
+    const existing = (items[itemIdx].photos as StoredPhoto[]) ?? [];
+    items[itemIdx].photos = existing.filter((p) => p.filename !== filename);
+    await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+    try { await fs.unlink(path.join(UPLOADS_DIR, filename)); } catch { /* 既になくても続行 */ }
+    return true;
+  });
 }
 
 export async function addFloorPlanToDraft(
@@ -276,14 +310,16 @@ export async function addFloorPlanToDraft(
   floorPlan: StoredFloorPlan,
 ): Promise<boolean> {
   await ensureDirs();
-  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
-  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
-  const idx = raws.findIndex((d) => String(d.id) === String(id));
-  if (idx === -1) return false;
-  const existing = (raws[idx].floorPlans as StoredFloorPlan[] | undefined) ?? [];
-  raws[idx].floorPlans = [...existing, floorPlan];
-  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
-  return true;
+  return withLock(async () => {
+    const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+    const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+    const idx = raws.findIndex((d) => String(d.id) === String(id));
+    if (idx === -1) return false;
+    const existing = (raws[idx].floorPlans as StoredFloorPlan[] | undefined) ?? [];
+    raws[idx].floorPlans = [...existing, floorPlan];
+    await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+    return true;
+  });
 }
 
 export async function removeFloorPlanFromDraft(
@@ -291,59 +327,62 @@ export async function removeFloorPlanFromDraft(
   filename: string,
 ): Promise<boolean> {
   await ensureDirs();
-  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
-  const raws = JSON.parse(text) as Array<Record<string, unknown>>;
-  const idx = raws.findIndex((d) => String(d.id) === String(id));
-  if (idx === -1) return false;
-  const existing = (raws[idx].floorPlans as StoredFloorPlan[] | undefined) ?? [];
-  raws[idx].floorPlans = existing.filter((fp) => fp.filename !== filename);
-  await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
-  try { await fs.unlink(path.join(UPLOADS_DIR, filename)); } catch { /* 既になくても続行 */ }
-  return true;
+  return withLock(async () => {
+    const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+    const raws = JSON.parse(text) as Array<Record<string, unknown>>;
+    const idx = raws.findIndex((d) => String(d.id) === String(id));
+    if (idx === -1) return false;
+    const existing = (raws[idx].floorPlans as StoredFloorPlan[] | undefined) ?? [];
+    raws[idx].floorPlans = existing.filter((fp) => fp.filename !== filename);
+    await fs.writeFile(DRAFTS_JSON, JSON.stringify(raws, null, 2), "utf8");
+    try { await fs.unlink(path.join(UPLOADS_DIR, filename)); } catch { /* 既になくても続行 */ }
+    return true;
+  });
 }
 
 export async function deleteDraft(id: string): Promise<boolean> {
   await ensureDirs();
+  return withLock(async () => {
+    // マイグレーションを介さず生のJSONオブジェクトで操作（型変換ミスを避ける）
+    const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
+    const raws: Array<Record<string, unknown>> = JSON.parse(text) as Array<Record<string, unknown>>;
 
-  // マイグレーションを介さず生のJSONオブジェクトで操作（型変換ミスを避ける）
-  const text = await fs.readFile(DRAFTS_JSON, "utf8").catch(() => "[]");
-  const raws: Array<Record<string, unknown>> = JSON.parse(text) as Array<Record<string, unknown>>;
+    const idx = raws.findIndex((d) => String(d.id) === String(id));
+    if (idx === -1) return false;
 
-  const idx = raws.findIndex((d) => String(d.id) === String(id));
-  if (idx === -1) return false;
+    const target = raws[idx];
 
-  const target = raws[idx];
-
-  // 紐づく画像ファイルを削除（新旧どちらの形式にも対応）
-  const items = Array.isArray(target.items)
-    ? (target.items as Array<Record<string, unknown>>)
-    : [];
-  for (const item of items) {
-    const photos: Array<{ filename: string }> = Array.isArray(item.photos)
-      ? (item.photos as Array<{ filename: string }>)
-      : item.photo
-        ? [item.photo as { filename: string }]
-        : [];
-    for (const photo of photos) {
-      try {
-        await fs.unlink(path.join(UPLOADS_DIR, photo.filename));
-      } catch {
-        // ファイルが既になくても続行
+    // 紐づく画像ファイルを削除（新旧どちらの形式にも対応）
+    const items = Array.isArray(target.items)
+      ? (target.items as Array<Record<string, unknown>>)
+      : [];
+    for (const item of items) {
+      const photos: Array<{ filename: string }> = Array.isArray(item.photos)
+        ? (item.photos as Array<{ filename: string }>)
+        : item.photo
+          ? [item.photo as { filename: string }]
+          : [];
+      for (const photo of photos) {
+        try {
+          await fs.unlink(path.join(UPLOADS_DIR, photo.filename));
+        } catch {
+          // ファイルが既になくても続行
+        }
       }
     }
-  }
 
-  // 図面ファイルを削除
-  const floorPlans = Array.isArray(target.floorPlans)
-    ? (target.floorPlans as Array<{ filename: string }>)
-    : target.floorPlan ? [target.floorPlan as { filename: string }] : [];
-  for (const fp of floorPlans) {
-    try { await fs.unlink(path.join(UPLOADS_DIR, fp.filename)); } catch { /* 既になくても続行 */ }
-  }
+    // 図面ファイルを削除
+    const floorPlans = Array.isArray(target.floorPlans)
+      ? (target.floorPlans as Array<{ filename: string }>)
+      : target.floorPlan ? [target.floorPlan as { filename: string }] : [];
+    for (const fp of floorPlans) {
+      try { await fs.unlink(path.join(UPLOADS_DIR, fp.filename)); } catch { /* 既になくても続行 */ }
+    }
 
-  const remaining = raws.filter((_, i) => i !== idx);
-  await fs.writeFile(DRAFTS_JSON, JSON.stringify(remaining, null, 2), "utf8");
-  return true;
+    const remaining = raws.filter((_, i) => i !== idx);
+    await fs.writeFile(DRAFTS_JSON, JSON.stringify(remaining, null, 2), "utf8");
+    return true;
+  });
 }
 
 export function getUploadPath(filename: string) {

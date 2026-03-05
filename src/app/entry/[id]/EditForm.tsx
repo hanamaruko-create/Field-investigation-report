@@ -63,10 +63,6 @@ export default function EditForm({ draft }: { draft: Draft }) {
     items.length > 0 &&
     items.every((it) => it.place.trim().length > 0 && (it.existingPhotos.length + it.newFiles.length) > 0);
 
-  function updateItem(key: string, updater: (prev: EditItem) => EditItem) {
-    setItems((prev) => prev.map((it) => (it.id === key || (it.id === null && it.place === key) ? updater(it) : it)));
-  }
-
   function updateItemByIndex(idx: number, updater: (prev: EditItem) => EditItem) {
     setItems((prev) => prev.map((it, i) => i === idx ? updater(it) : it));
   }

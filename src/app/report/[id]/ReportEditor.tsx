@@ -25,7 +25,6 @@ type Props = { draft: Draft };
 
 export default function ReportEditor({ draft }: Props) {
   const [projectName, setProjectName] = useState(draft.projectName);
-  const [contractorName, setContractorName] = useState(draft.contractorName);
   const [surveyDate, setSurveyDate] = useState(draft.surveyDate);
   const [surveyContents, setSurveyContents] = useState<string[]>(
     Array.isArray(draft.surveyContent) ? draft.surveyContent : [],
@@ -57,6 +56,7 @@ export default function ReportEditor({ draft }: Props) {
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [newDragOver, setNewDragOver] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   function appendNewFiles(files: File[]) {
     if (!files.length) return;
@@ -103,7 +103,12 @@ export default function ReportEditor({ draft }: Props) {
     fd.append("action", "remove-photo");
     fd.append("itemId", itemId);
     fd.append("filename", filename);
-    await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", body: fd });
+    const res = await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", body: fd });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { error?: string };
+      setFetchError(json.error ?? `写真の削除に失敗しました (${res.status})`);
+      return;
+    }
     setItems((prev) => prev.map((it) => it.id === itemId ? { ...it, photos: it.photos.filter((p) => p.filename !== filename) } : it));
   }
 
@@ -135,7 +140,12 @@ export default function ReportEditor({ draft }: Props) {
     const fd = new FormData();
     fd.append("action", "delete-floor-plan");
     fd.append("filename", filename);
-    await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", body: fd });
+    const res = await fetch(`/api/drafts/${draft.id}`, { method: "PATCH", body: fd });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { error?: string };
+      setFetchError(json.error ?? `図面の削除に失敗しました (${res.status})`);
+      return;
+    }
     setEditorFPs((prev) => prev.filter((fp) => fp.filename !== filename));
   }
 
@@ -157,6 +167,13 @@ export default function ReportEditor({ draft }: Props) {
 
   return (
     <>
+      {/* エラーバナー */}
+      {fetchError && (
+        <div className="no-print flex items-center justify-between gap-4 bg-red-50 px-6 py-2 text-sm text-red-700">
+          <span>{fetchError}</span>
+          <button type="button" onClick={() => setFetchError(null)} className="text-red-500 hover:text-red-700">✕</button>
+        </div>
+      )}
       {/* 印刷時に非表示になるコントロールバー */}
       <div className="no-print sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-6 py-3 shadow-sm">
         <span className="text-sm font-medium text-zinc-700">

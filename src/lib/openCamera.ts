@@ -12,6 +12,9 @@ export function openCamera(onFiles: (files: File[]) => void) {
     if (files.length) onFiles(files);
     input.remove();
   };
+  window.addEventListener("focus", () => {
+    setTimeout(() => input.remove(), 1000);
+  }, { once: true });
   document.body.appendChild(input);
   input.click();
 }
