@@ -1,0 +1,43 @@
+[
+  {
+    "id": "51369d2c-5603-436a-8185-1f48a6f27054",
+    "projectName": "ライフ渋谷東店",
+    "contractorName": "株式会社IPEC",
+    "surveyDate": "2026-03-03",
+    "createdAt": "2026-03-03T21:42:37.172Z",
+    "items": [
+      {
+        "id": "1414f8c7-b548-4726-9898-e65dab552a61",
+        "place": "精肉",
+        "code": "A",
+        "disclaimerText": "天井裏の要因 (水漏れ・配管結露・断熱材)\n天井裏にカビ発生の原因があるので、再発する可能性が高いです。除カビ防カビでは原因解決しないため、建設的な改善が必要になってくる箇所です。カビの初期発生箇所になりやすいです。その際は再発ではなく、新規カビとなります。\n対象箇所：水漏れ、雨漏り、配管結露、断熱材",
+        "photos": [
+          {
+            "filename": "af5822ac-eeef-4aad-b34d-47453d73a3a2.jpg",
+            "originalName": "S__194240718_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 470370
+          },
+          {
+            "filename": "1dec1d9e-5e87-4d14-804d-c29ac509895e.jpg",
+            "originalName": "S__194240720_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 425465
+          },
+          {
+            "filename": "17130529-d5c4-4409-b1f0-4826e53a3091.jpg",
+            "originalName": "S__194240721_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 469857
+          },
+          {
+            "filename": "2552f549-241c-4609-8f8f-3bdbd0d7da71.jpg",
+            "originalName": "S__194240722_0.jpg",
+            "mimeType": "image/jpeg",
+            "size": 467813
+          }
+        ]
+      }
+    ]
+  }
+]
