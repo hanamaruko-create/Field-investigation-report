@@ -25,7 +25,6 @@ function checkRateLimit(ip: string): boolean {
 type RawAnnotation =
   | { type: "rect";    x: number; y: number; w: number; h: number; label?: string }
   | { type: "ellipse"; cx: number; cy: number; rx: number; ry: number; label?: string }
-  | { type: "line";    x1: number; y1: number; x2: number; y2: number }
   | { type: "arrow";   x1: number; y1: number; x2: number; y2: number }
   | { type: "text";    x: number; y: number; text: string };
 
@@ -40,7 +39,6 @@ function validateAnnotation(a: unknown): a is RawAnnotation {
   switch (r.type) {
     case "rect":    return isNum(r.x, r.y, r.w, r.h);
     case "ellipse": return isNum(r.cx, r.cy, r.rx, r.ry);
-    case "line":
     case "arrow":   return isNum(r.x1, r.y1, r.x2, r.y2);
     case "text":    return isNum(r.x, r.y) && typeof r.text === "string";
     default:        return false;
@@ -86,7 +84,7 @@ export async function POST(req: Request) {
     const client = new Anthropic();
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4096,
+      max_tokens: 2048,
       messages: [{
         role: "user",
         content: [
@@ -97,19 +95,18 @@ export async function POST(req: Request) {
           {
             type: "text",
             text: `この画像は手書きでマーキングされた図面の写真です。
-図面の内側に手書きで追加された図形のみを検出してください。
+手書きで書かれた**輪郭図形**のみを検出してください。
 
 【検出対象】
-・図面の内側に手書きで描かれた四角形・円・矢印・直線
-・図面に手書きで書かれた文字・数字（ペン・マーカーで直接書いたもの）
+- 四角形・長方形の外枠（rectとして）
+- 円・楕円の外枠（ellipseとして）
+- 矢印（arrowとして）
+- 手書きテキスト・ラベル（textとして）
 
-【絶対に検出しないもの】
-・図面の外側（余白・白紙部分）に書かれたもの
-・図面に最初から印刷・印字されているテキスト（店舗名・部屋名・面積・天井高・営業時間・寸法・記号・凡例など）
-・図面に最初から印刷されている線・壁・柱・建具などの構造線
-
-【labelフィールドについて】
-・label は必ず空文字列 "" にしてください。説明文・図形の説明・位置の説明は絶対に入れないでください。
+【除外するもの】
+- 図形の内側に描かれた斜線・ハッチング・格子線（絶対に検出しない）
+- 図面の印刷線（元から印刷されている線）
+- 手書きの単純な直線（矢印でないもの）
 
 各図形の位置は画像全体の幅・高さに対するパーセンテージ（0〜100）で返してください。
 
@@ -119,8 +116,7 @@ export async function POST(req: Request) {
     {"type": "rect", "x": 数値, "y": 数値, "w": 数値, "h": 数値, "label": ""},
     {"type": "ellipse", "cx": 数値, "cy": 数値, "rx": 数値, "ry": 数値, "label": ""},
     {"type": "arrow", "x1": 数値, "y1": 数値, "x2": 数値, "y2": 数値},
-    {"type": "line",  "x1": 数値, "y1": 数値, "x2": 数値, "y2": 数値},
-    {"type": "text",  "x": 数値, "y": 数値, "text": "手書き文字のみ（印刷文字は絶対に含めない）"}
+    {"type": "text",  "x": 数値, "y": 数値, "text": "検出した文字"}
   ]
 }`,
           },
@@ -142,7 +138,7 @@ export async function POST(req: Request) {
       } catch {
         // 全体パースが失敗した場合、アノテーションオブジェクトを1件ずつ抽出
         console.warn("[analyze-floor-plan] full JSON parse failed, trying per-object extraction");
-        const objRegex = /\{\s*"type"\s*:\s*"(rect|ellipse|arrow|line|text)"[^{}]*\}/g;
+        const objRegex = /\{\s*"type"\s*:\s*"(rect|ellipse|arrow|text)"[^{}]*\}/g;
         let m: RegExpExecArray | null;
         while ((m = objRegex.exec(stripped)) !== null) {
           try { parsed.push(JSON.parse(m[0]) as RawAnnotation); } catch { /* skip */ }
@@ -168,8 +164,6 @@ export async function POST(req: Request) {
           return { type: "ellipse", cx: p(a.cx, W),  cy: p(a.cy, H), rx: p(a.rx, W), ry: p(a.ry, H), label: a.label ?? "" };
         case "arrow":
           return { type: "arrow",   x1: p(a.x1, W), y1: p(a.y1, H), x2: p(a.x2, W), y2: p(a.y2, H) };
-        case "line":
-          return { type: "line",    x1: p(a.x1, W), y1: p(a.y1, H), x2: p(a.x2, W), y2: p(a.y2, H) };
         case "text":
           return { type: "text",    x: p(a.x, W),   y: p(a.y, H),   text: a.text };
       }

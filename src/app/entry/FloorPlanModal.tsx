@@ -103,6 +103,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
 
   const svgRef = useRef<SVGSVGElement>(null);
   const seqRef = useRef(0);
+  const selectedIdRef = useRef<string | null>(null);
   function nextSeq() { return ++seqRef.current; }
 
   useEffect(() => {
@@ -115,6 +116,23 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     const up = () => setDrag(null);
     window.addEventListener("mouseup", up);
     return () => window.removeEventListener("mouseup", up);
+  }, []);
+
+  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const id = selectedIdRef.current;
+      if (!id) return;
+      e.preventDefault();
+      setAnnotations(a => a.filter(x => x.id !== id));
+      setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   const fs = Math.max(imageSize.w, imageSize.h) * 0.022;
