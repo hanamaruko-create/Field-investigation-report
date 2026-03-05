@@ -11,6 +11,7 @@ import FloorPlanModal, { type FloorPlanResult } from "./FloorPlanModal";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 import { randomUUID } from "@/lib/uuid";
 import { openCamera } from "@/lib/openCamera";
+import ContinuousCamera from "./ContinuousCamera";
 
 type EntryItem = {
   id: string;
@@ -53,6 +54,7 @@ export default function EntryPage() {
   const [showFPModal,   setShowFPModal]   = useState(false);
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [shootingItemId, setShootingItemId] = useState<string | null>(null);
 
   function appendFiles(itemId: string, files: File[]) {
     if (!files.length) return;
@@ -392,18 +394,14 @@ export default function EntryPage() {
                 <div className="flex flex-col gap-2 md:col-span-2">
                   <span className="text-sm font-medium text-zinc-700">写真</span>
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* カメラ直接起動（スマホ） */}
-                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
-                      📷 カメラで撮影
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
-                        onChange={(e) => { appendFiles(it.id, Array.from(e.target.files ?? [])); e.target.value = ""; }}
-                      />
-                    </label>
+                    {/* 連続撮影モード */}
+                    <button
+                      type="button"
+                      className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+                      onClick={() => setShootingItemId(it.id)}
+                    >
+                      📷 連続撮影
+                    </button>
                     {/* ライブラリ／ファイル選択（複数可） */}
                     <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50">
                       🖼 ライブラリから選択
@@ -508,6 +506,14 @@ export default function EntryPage() {
           </div>
         )}
       </section>
+
+      {/* 連続撮影オーバーレイ */}
+      {shootingItemId !== null && (
+        <ContinuousCamera
+          onCommit={(files) => { appendFiles(shootingItemId, files); setShootingItemId(null); }}
+          onCancel={() => setShootingItemId(null)}
+        />
+      )}
 
       {/* 図面アノテーションモーダル */}
       {showFPModal && (() => {

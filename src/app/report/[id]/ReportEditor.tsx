@@ -6,6 +6,7 @@ import { CONTRACTOR_NAME, COMPANY_ADDRESS, COMPANY_TEL, COMPANY_FAX } from "@/li
 import FloorPlanModal, { type FloorPlanResult } from "@/app/entry/FloorPlanModal";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 import { openCamera } from "@/lib/openCamera";
+import ContinuousCamera from "@/app/entry/ContinuousCamera";
 
 // 写真枚数に応じた列数を決定
 function photoCols(n: number): number {
@@ -47,6 +48,7 @@ export default function ReportEditor({ draft }: Props) {
     })),
   );
   const [showFPModal, setShowFPModal] = useState(false);
+  const [shootingItemId, setShootingItemId] = useState<string | null>(null);
 
   // 撮影場所追加フォーム
   const [addingItem, setAddingItem] = useState(false);
@@ -292,12 +294,13 @@ export default function ReportEditor({ draft }: Props) {
                   </div>
                   {/* 写真追加ボタン（印刷時非表示） */}
                   <div className="no-print mt-2 flex flex-wrap gap-2">
-                    <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
-                      📷 カメラで撮影
-                      <input type="file" accept="image/*" capture="environment" className="hidden"
-                        ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
-                        onChange={(e) => { addPhotos(item.id, Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-                    </label>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                      onClick={() => setShootingItemId(item.id)}
+                    >
+                      📷 連続撮影
+                    </button>
                     <label className="cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
                       🖼 写真を追加
                       <input type="file" accept="image/*" multiple className="hidden"
@@ -497,6 +500,14 @@ export default function ReportEditor({ draft }: Props) {
           </footer>
         </div>
       </div>
+
+      {/* 連続撮影オーバーレイ */}
+      {shootingItemId !== null && (
+        <ContinuousCamera
+          onCommit={(files) => { addPhotos(shootingItemId, files); setShootingItemId(null); }}
+          onCancel={() => setShootingItemId(null)}
+        />
+      )}
 
       {/* 図面アノテーションモーダル */}
       {showFPModal && (
