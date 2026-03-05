@@ -233,6 +233,26 @@ export default function ReportEditor({ draft }: Props) {
               <p>{COMPANY_ADDRESS}</p>
               <p>TEL: {COMPANY_TEL} / FAX: {COMPANY_FAX}</p>
             </div>
+
+            {/* 表紙免責事項 */}
+            <div className="w-full max-w-md border border-zinc-700 px-5 py-4 text-left text-xs leading-relaxed text-zinc-700">
+              <p className="mb-2 font-bold text-zinc-900">【免責事項】</p>
+              <p className="mb-3">
+                一部重症箇所(再発が著しく出る)のケースが稀に御座います。<br />
+                重症施設においては、発生したカビを除去しても、<br />
+                短期間で再発するため、そもそもの環境改善が必須になる場合があります。<br />
+                ※具体的な環境改善については<br />
+                報告書および営業担当からご提案させて頂きます。
+              </p>
+              <p className="mb-2 font-bold text-zinc-900">保証適用除外項目:</p>
+              <p className="mb-1">以下の条件の箇所は、カビ再発時有償となる場合があります。</p>
+              <ul className="space-y-0.5">
+                <li>・極端に結露が発生している箇所</li>
+                <li>・天井裏や設備不良によりカビが発生している箇所</li>
+                <li>・弊社施工の前に塗装の厚塗りを施している箇所</li>
+                <li>・天変地異に起因する場合(梅雨以外の集中豪雨を含む)</li>
+              </ul>
+            </div>
           </div>
         </div>
 

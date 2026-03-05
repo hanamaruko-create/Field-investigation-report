@@ -98,6 +98,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
   const [svgCursor,           setSvgCursor]           = useState<{ x: number; y: number } | null>(null);
   const [isDragOver,          setIsDragOver]          = useState(false);
   const [zoom,                setZoom]                = useState(100);
+  const [aiAnalyzing,         setAiAnalyzing]         = useState(false);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const seqRef = useRef(0);
@@ -319,6 +320,37 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
 
   const selectedA = annotations.find(a => a.id === selectedId);
 
+  async function handleAiAnalysis(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setAiAnalyzing(true);
+    try {
+      const fd = new FormData();
+      fd.append("photo", file);
+      fd.append("imageWidth",  String(imageSize.w));
+      fd.append("imageHeight", String(imageSize.h));
+      const res  = await fetch("/api/analyze-floor-plan", { method: "POST", body: fd });
+      const json = await res.json() as { annotations?: Record<string, unknown>[]; error?: string };
+      if (json.error) { alert(`AI解析エラー: ${json.error}`); return; }
+      if (json.annotations?.length) {
+        const added = json.annotations.map((a) => ({
+          ...a,
+          id:    randomUUID(),
+          seq:   nextSeq(),
+          color: "#ef4444",
+        })) as Annotation[];
+        setAnnotations(prev => [...prev, ...added]);
+      } else {
+        alert("図形が検出できませんでした。");
+      }
+    } catch (err) {
+      alert(`エラー: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setAiAnalyzing(false);
+    }
+  }
+
   function handleConfirm() {
     if (!currentFile || !imageDataUrl) return;
     onConfirm({ file: currentFile, imageDataUrl, imageSize, annotations, eraserStrokes });
@@ -362,6 +394,13 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
           図面を読み込む
           <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
         </label>
+
+        {imageDataUrl && (
+          <label className={`cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition ${aiAnalyzing ? "border-purple-200 bg-purple-50 text-purple-400 cursor-wait" : "border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100"}`}>
+            {aiAnalyzing ? "🤖 解析中…" : "🤖 手書き写真をAI解析"}
+            <input type="file" accept="image/*" className="hidden" disabled={aiAnalyzing} onChange={handleAiAnalysis} />
+          </label>
+        )}
 
         {imageDataUrl && (
           <>
