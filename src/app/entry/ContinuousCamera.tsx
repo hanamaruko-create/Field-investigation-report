@@ -55,14 +55,13 @@ export default function ContinuousCamera({ onCommit, onCancel }: Props) {
       {/* 操作ボタン */}
       <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900 p-4">
         <label className="flex h-14 cursor-pointer items-center justify-center rounded-xl bg-white text-base font-semibold text-zinc-900 active:bg-zinc-100">
-          📷 {staged.length > 0 ? "もう1枚撮影" : "撮影する"}
+          📷 {staged.length > 0 ? "もう1枚追加" : "写真を選択"}
           <input
             key={staged.length}
             type="file"
             accept="image/*"
-            capture="environment"
+            multiple
             className="hidden"
-            ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
             onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); }}
           />
         </label>
