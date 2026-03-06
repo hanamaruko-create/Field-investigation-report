@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   onCommit: (files: File[]) => void;
@@ -9,6 +9,11 @@ type Props = {
 
 export default function ContinuousCamera({ onCommit, onCancel }: Props) {
   const [staged, setStaged] = useState<{ file: File; url: string }[]>([]);
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
 
   function addFiles(files: File[]) {
     setStaged((prev) => [...prev, ...files.map((f) => ({ file: f, url: URL.createObjectURL(f) }))]);
@@ -31,7 +36,7 @@ export default function ContinuousCamera({ onCommit, onCancel }: Props) {
         {staged.length > 0 ? (
           <>
             <p className="mb-3 text-center text-sm font-medium text-zinc-300">
-              {staged.length}枚撮影済み
+              {staged.length}枚{isIOS ? "撮影済み" : "選択済み"}
             </p>
             <div className="grid grid-cols-3 gap-2">
               {staged.map((s, i) => (
@@ -47,7 +52,9 @@ export default function ContinuousCamera({ onCommit, onCancel }: Props) {
           </>
         ) : (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-zinc-500">撮影した写真がここに表示されます</p>
+            <p className="text-sm text-zinc-500">
+              {isIOS ? "撮影した写真がここに表示されます" : "選択した写真がここに表示されます"}
+            </p>
           </div>
         )}
       </div>
@@ -55,12 +62,13 @@ export default function ContinuousCamera({ onCommit, onCancel }: Props) {
       {/* 操作ボタン */}
       <div className="flex flex-col gap-3 border-t border-zinc-800 bg-zinc-900 p-4">
         <label className="flex h-14 cursor-pointer items-center justify-center rounded-xl bg-white text-base font-semibold text-zinc-900 active:bg-zinc-100">
-          📷 {staged.length > 0 ? "もう1枚追加" : "写真を選択"}
+          📷 {staged.length > 0 ? (isIOS ? "もう1枚撮影" : "もう1枚追加") : (isIOS ? "撮影する" : "写真を選択")}
           <input
             key={staged.length}
             type="file"
             accept="image/*"
-            multiple
+            {...(isIOS ? { capture: "environment" } : { multiple: true })}
+            ref={(el) => { if (el && isIOS) el.setAttribute("capture", "environment"); }}
             className="hidden"
             onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); }}
           />
