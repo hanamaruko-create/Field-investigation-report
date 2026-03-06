@@ -10,7 +10,6 @@ import { CONTRACTOR_NAME, PROJECT_NAME, SURVEY_CONTENT_OPTIONS } from "@/lib/con
 import FloorPlanModal, { type FloorPlanResult } from "./FloorPlanModal";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 import { randomUUID } from "@/lib/uuid";
-import { openCamera } from "@/lib/openCamera";
 import ContinuousCamera from "./ContinuousCamera";
 
 type EntryItem = {

@@ -57,12 +57,13 @@ export default function ContinuousCamera({ onCommit, onCancel }: Props) {
         <label className="flex h-14 cursor-pointer items-center justify-center rounded-xl bg-white text-base font-semibold text-zinc-900 active:bg-zinc-100">
           📷 {staged.length > 0 ? "もう1枚撮影" : "撮影する"}
           <input
+            key={staged.length}
             type="file"
             accept="image/*"
             capture="environment"
             className="hidden"
             ref={(el) => { if (el) el.setAttribute("capture", "environment"); }}
-            onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }}
+            onChange={(e) => { addFiles(Array.from(e.target.files ?? [])); }}
           />
         </label>
         {staged.length > 0 && (
