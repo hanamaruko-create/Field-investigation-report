@@ -36,10 +36,11 @@ export default function ReportEditor({ draft }: Props) {
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   // 図面（プレビュー内で追加・複数管理可能）
-  type EditorFP = { filename: string; imageUrl: string; imageWidth: number; imageHeight: number; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
+  type EditorFP = { filename: string; title?: string; imageUrl: string; imageWidth: number; imageHeight: number; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
   const [editorFPs, setEditorFPs] = useState<EditorFP[]>(
     (draft.floorPlans ?? []).map((fp) => ({
       filename: fp.filename,
+      title: fp.title,
       imageUrl: `/api/uploads/${fp.filename}`,
       imageWidth: fp.imageWidth,
       imageHeight: fp.imageHeight,
@@ -112,6 +113,7 @@ export default function ReportEditor({ draft }: Props) {
     fd.append("action", "add-floor-plan");
     fd.append("floorPlan", result.file);
     fd.append("floorPlanData", JSON.stringify({
+      title: result.title,
       imageWidth: result.imageSize.w,
       imageHeight: result.imageSize.h,
       annotations: result.annotations,
@@ -122,6 +124,7 @@ export default function ReportEditor({ draft }: Props) {
     const filename = json.floorPlan?.filename ?? "";
     setEditorFPs((prev) => [...prev, {
       filename,
+      title: result.title,
       imageUrl: filename ? `/api/uploads/${filename}` : result.imageDataUrl,
       imageWidth: result.imageSize.w,
       imageHeight: result.imageSize.h,
@@ -419,10 +422,13 @@ export default function ReportEditor({ draft }: Props) {
                 <span className="shrink-0 rounded bg-zinc-800 px-2 py-0.5 text-xs font-semibold text-white">
                   図面{editorFPs.length > 1 ? `　${fpIdx + 1}` : ""}
                 </span>
+                {fp.title && (
+                  <span className="text-sm font-semibold text-zinc-700">{fp.title}</span>
+                )}
                 <button
                   type="button"
                   onClick={() => deleteFP(fp.filename)}
-                  className="no-print text-xs text-red-500 hover:text-red-700"
+                  className="no-print ml-auto text-xs text-red-500 hover:text-red-700"
                 >
                   削除
                 </button>
@@ -490,6 +496,45 @@ export default function ReportEditor({ draft }: Props) {
                                 <text x={a.x} y={a.y}
                                   fill={a.color} fontSize={tfs} fontWeight="700" paintOrder="stroke" stroke="white" strokeWidth={tfs * 0.25}
                                   style={{ userSelect: "none" }}>{a.text}</text>
+                              );
+                            }
+                            case "symbol": {
+                              const { x, y, size, color, label, symbolKind } = a;
+                              const sw2 = sWidth * 1.5;
+                              const labelProps = { fill: color, fontSize: fSize * 0.6, fontWeight: "700" as const, textAnchor: "middle" as const, paintOrder: "stroke" as const, stroke: "white", strokeWidth: fSize * 0.15 };
+                              const iconProps = { fill: color, fontSize: size * 0.9, fontWeight: "700" as const, textAnchor: "middle" as const, dominantBaseline: "central" as const };
+                              const labelY = y + size * 1.9;
+                              if (symbolKind === "ac") {
+                                const w = size * 2.2, h = size * 1.2;
+                                return (
+                                  <g>
+                                    <rect x={x - w/2} y={y - h/2} width={w} height={h} fill="none" stroke={color} strokeWidth={sw2} />
+                                    {([-h*0.2, 0, h*0.2] as number[]).map((dy, i) => (
+                                      <line key={i} x1={x - w/2 + sw2} y1={y + dy} x2={x + w/2 - sw2} y2={y + dy} stroke={color} strokeWidth={sWidth * 0.8} />
+                                    ))}
+                                    {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+                                  </g>
+                                );
+                              }
+                              if (symbolKind === "louver") {
+                                const w = size * 2, h = size * 1.4;
+                                return (
+                                  <g>
+                                    <rect x={x - w/2} y={y - h/2} width={w} height={h} fill="none" stroke={color} strokeWidth={sw2} />
+                                    {([0.3, 0.5, 0.7] as number[]).map((t, i) => (
+                                      <line key={i} x1={x - w/2 + sw2} y1={y - h/2 + h*t} x2={x + w/2 - sw2} y2={y - h/2 + h*t} stroke={color} strokeWidth={sWidth * 0.8} />
+                                    ))}
+                                    {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+                                  </g>
+                                );
+                              }
+                              const icon = symbolKind === "intake" ? "↓" : symbolKind === "exhaust" ? "↑" : "⊕";
+                              return (
+                                <g>
+                                  <circle cx={x} cy={y} r={size} fill="none" stroke={color} strokeWidth={sw2} />
+                                  <text x={x} y={y} {...iconProps}>{icon}</text>
+                                  {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+                                </g>
                               );
                             }
                           }

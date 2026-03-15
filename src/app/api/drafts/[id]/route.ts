@@ -67,9 +67,9 @@ export async function PATCH(
       const fpFile = formData.get("floorPlan");
       const fpDataRaw = formData.get("floorPlanData")?.toString();
       if (!(fpFile instanceof File) || !fpDataRaw) return NextResponse.json({ error: "invalid" }, { status: 400 });
-      const fpData = JSON.parse(fpDataRaw) as { imageWidth: number; imageHeight: number; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
+      const fpData = JSON.parse(fpDataRaw) as { title?: string; imageWidth: number; imageHeight: number; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
       const stored = await storeUpload(fpFile);
-      const floorPlan = { filename: stored.filename, imageWidth: fpData.imageWidth, imageHeight: fpData.imageHeight, annotations: fpData.annotations, eraserStrokes: fpData.eraserStrokes };
+      const floorPlan = { filename: stored.filename, title: fpData.title ?? "", imageWidth: fpData.imageWidth, imageHeight: fpData.imageHeight, annotations: fpData.annotations, eraserStrokes: fpData.eraserStrokes };
       const ok = await addFloorPlanToDraft(id, floorPlan);
       if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
       return NextResponse.json({ ok: true, floorPlan });

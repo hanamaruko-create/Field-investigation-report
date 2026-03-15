@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
+import type { Annotation, EraserStroke, SymbolKind } from "@/lib/floorPlanTypes";
 import { randomUUID } from "@/lib/uuid";
 
 // ─── ローカル型 ───────────────────────────────────────────────────────────────
 
 type DrawTool = "rect" | "ellipse" | "line" | "arrow" | "text";
-type Tool     = DrawTool | "select" | "eraser";
+type Tool     = DrawTool | "select" | "eraser" | "symbol";
 
 type DragState =
   | { mode: "draw"; sx: number; sy: number; cx: number; cy: number }
@@ -24,7 +24,16 @@ const TOOLS: { key: Tool; label: string }[] = [
   { key: "line",    label: "直線" },
   { key: "arrow",   label: "矢印" },
   { key: "text",    label: "テキスト" },
+  { key: "symbol",  label: "シンボル" },
   { key: "eraser",  label: "消しゴム" },
+];
+
+const SYMBOL_KINDS: { kind: SymbolKind; label: string }[] = [
+  { kind: "ac",      label: "AC" },
+  { kind: "intake",  label: "吸気口" },
+  { kind: "exhaust", label: "排気口" },
+  { kind: "fan",     label: "搬送ファン" },
+  { kind: "louver",  label: "ガラリ" },
 ];
 
 // ─── ユーティリティ ──────────────────────────────────────────────────────────
@@ -40,7 +49,69 @@ function translate(a: Annotation, dx: number, dy: number): Annotation {
     case "ellipse": return { ...a, cx: a.cx + dx, cy: a.cy + dy };
     case "line":
     case "arrow":   return { ...a, x1: a.x1 + dx, y1: a.y1 + dy, x2: a.x2 + dx, y2: a.y2 + dy };
-    case "text":    return { ...a, x: a.x + dx, y: a.y + dy };
+    case "text":
+    case "symbol":  return { ...a, x: a.x + dx, y: a.y + dy };
+  }
+}
+
+function SymbolShape({ x, y, symbolKind, label, color, size, isSel, sw, fs }: {
+  x: number; y: number; symbolKind: SymbolKind; label: string; color: string; size: number; isSel: boolean; sw: number; fs: number;
+}) {
+  const sw2 = isSel ? sw * 3 : sw * 1.5;
+  const fill = isSel ? `${color}22` : "none";
+  const labelProps = { fill: color, fontSize: fs * 0.6, fontWeight: "700" as const, textAnchor: "middle" as const, paintOrder: "stroke" as const, stroke: "white", strokeWidth: fs * 0.15 };
+  const iconProps = { fill: color, fontSize: size * 0.9, fontWeight: "700" as const, textAnchor: "middle" as const, dominantBaseline: "central" as const };
+  const labelY = y + size * 1.9;
+
+  switch (symbolKind) {
+    case "ac": {
+      const w = size * 2.2, h = size * 1.2;
+      return (
+        <g>
+          <rect x={x - w/2} y={y - h/2} width={w} height={h} fill={fill} stroke={color} strokeWidth={sw2} />
+          {([-h*0.2, 0, h*0.2] as number[]).map((dy, i) => (
+            <line key={i} x1={x - w/2 + sw2} y1={y + dy} x2={x + w/2 - sw2} y2={y + dy} stroke={color} strokeWidth={sw * 0.8} />
+          ))}
+          {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+        </g>
+      );
+    }
+    case "intake":
+      return (
+        <g>
+          <circle cx={x} cy={y} r={size} fill={fill} stroke={color} strokeWidth={sw2} />
+          <text x={x} y={y} {...iconProps}>↓</text>
+          {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+        </g>
+      );
+    case "exhaust":
+      return (
+        <g>
+          <circle cx={x} cy={y} r={size} fill={fill} stroke={color} strokeWidth={sw2} />
+          <text x={x} y={y} {...iconProps}>↑</text>
+          {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+        </g>
+      );
+    case "fan":
+      return (
+        <g>
+          <circle cx={x} cy={y} r={size} fill={fill} stroke={color} strokeWidth={sw2} />
+          <text x={x} y={y} {...iconProps}>⊕</text>
+          {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+        </g>
+      );
+    case "louver": {
+      const w = size * 2, h = size * 1.4;
+      return (
+        <g>
+          <rect x={x - w/2} y={y - h/2} width={w} height={h} fill={fill} stroke={color} strokeWidth={sw2} />
+          {([0.3, 0.5, 0.7] as number[]).map((t, i) => (
+            <line key={i} x1={x - w/2 + sw2} y1={y - h/2 + h*t} x2={x + w/2 - sw2} y2={y - h/2 + h*t} stroke={color} strokeWidth={sw * 0.8} />
+          ))}
+          {label && <text x={x} y={labelY} {...labelProps}>{label}</text>}
+        </g>
+      );
+    }
   }
 }
 
@@ -64,6 +135,7 @@ export type FloorPlanResult = {
   imageSize: { w: number; h: number };
   annotations: Annotation[];
   eraserStrokes: EraserStroke[];
+  title: string;
 };
 
 type Props = {
@@ -73,6 +145,7 @@ type Props = {
     imageSize: { w: number; h: number };
     annotations: Annotation[];
     eraserStrokes: EraserStroke[];
+    title?: string;
   };
   onConfirm: (result: FloorPlanResult) => void;
   onCancel: () => void;
@@ -91,6 +164,8 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
   const [eraserSize,          setEraserSize]          = useState<"s" | "m" | "l">("m");
   const [tool,                setTool]                = useState<Tool>("rect");
   const [color,               setColor]               = useState("#ef4444");
+  const [selectedSymbolKind,  setSelectedSymbolKind]  = useState<SymbolKind>("ac");
+  const [title,               setTitle]               = useState(initial?.title ?? "");
   const [selectedId,          setSelectedId]          = useState<string | null>(null);
   const [drag,                setDrag]                = useState<DragState | null>(null);
   const [pendingText,         setPendingText]         = useState<{ x: number; y: number } | null>(null);
@@ -165,6 +240,14 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     if (tool === "eraser") { e.preventDefault(); setIsErasing(true); setCurrentEraserPoints([p]); return; }
     if (tool === "select") { setSelectedId(null); return; }
     if (tool === "text")   return;
+    if (tool === "symbol") {
+      e.preventDefault();
+      const id = randomUUID(), seq = nextSeq();
+      const size = Math.max(imageSize.w, imageSize.h) * 0.03;
+      const defaultLabel = SYMBOL_KINDS.find(k => k.kind === selectedSymbolKind)?.label ?? "";
+      setAnnotations(prev => [...prev, { id, seq, type: "symbol", x: p.x, y: p.y, symbolKind: selectedSymbolKind, label: defaultLabel, color, size }]);
+      return;
+    }
     e.preventDefault();
     setDrag({ mode: "draw", sx: p.x, sy: p.y, cx: p.x, cy: p.y });
   }
@@ -315,6 +398,13 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
           </text>
         );
       }
+      case "symbol":
+        return (
+          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
+            <SymbolShape x={a.x} y={a.y} symbolKind={a.symbolKind} label={a.label} color={a.color} size={a.size} isSel={isSel} sw={sw} fs={fs} />
+            <rect x={a.x - a.size * 1.5} y={a.y - a.size * 1.5} width={a.size * 3} height={a.size * 3} fill="transparent" />
+          </g>
+        );
     }
   }
 
@@ -353,7 +443,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
 
   function handleConfirm() {
     if (!currentFile || !imageDataUrl) return;
-    onConfirm({ file: currentFile, imageDataUrl, imageSize, annotations, eraserStrokes });
+    onConfirm({ file: currentFile, imageDataUrl, imageSize, annotations, eraserStrokes, title });
   }
 
   return (
@@ -366,6 +456,13 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
       {/* ヘッダー */}
       <div className="shrink-0 flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2 shadow-sm">
         <span className="text-sm font-semibold text-zinc-800">図面に書き込む</span>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="図面タイトル（例：エアコン配置）"
+          className="h-8 w-52 rounded-lg border border-zinc-200 px-2 text-sm outline-none focus:border-zinc-400"
+        />
         <div className="ml-auto flex items-center gap-2">
           {imageDataUrl && (
             <>
@@ -417,6 +514,22 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
               </button>
             ))}
 
+            {tool === "symbol" && (
+              <>
+                <span className="text-zinc-300">|</span>
+                {SYMBOL_KINDS.map(({ kind, label }) => (
+                  <button key={kind} type="button" onClick={() => setSelectedSymbolKind(kind)}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                      selectedSymbolKind === kind
+                        ? "bg-zinc-900 text-white"
+                        : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </>
+            )}
+
             {tool === "eraser" && (
               <>
                 <span className="text-zinc-300">|</span>
@@ -457,6 +570,12 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
                 {(selectedA.type === "rect" || selectedA.type === "ellipse") && (
                   <input type="text" value={selectedA.label}
                     onChange={(e) => updateLabel(selectedId!, e.target.value)}
+                    placeholder="ラベル"
+                    className="h-8 w-28 rounded-lg border border-zinc-200 px-2 text-sm outline-none focus:border-zinc-400" />
+                )}
+                {selectedA.type === "symbol" && (
+                  <input type="text" value={selectedA.label}
+                    onChange={(e) => setAnnotations(prev => prev.map(a => a.id === selectedId && a.type === "symbol" ? { ...a, label: e.target.value } : a))}
                     placeholder="ラベル"
                     className="h-8 w-28 rounded-lg border border-zinc-200 px-2 text-sm outline-none focus:border-zinc-400" />
                 )}
