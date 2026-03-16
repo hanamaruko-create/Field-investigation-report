@@ -11,7 +11,8 @@ type Tool     = DrawTool | "select" | "eraser" | "symbol";
 
 type DragState =
   | { mode: "draw"; sx: number; sy: number; cx: number; cy: number }
-  | { mode: "move"; id: string; sx: number; sy: number; orig: Annotation };
+  | { mode: "move";   id: string; handle?: undefined; sx: number; sy: number; orig: Annotation }
+  | { mode: "resize"; id: string; handle: string;     sx: number; sy: number; orig: Annotation };
 
 // ─── 定数 ─────────────────────────────────────────────────────────────────────
 
@@ -188,11 +189,30 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
   useEffect(() => {
     const up = () => setDrag(null);
     window.addEventListener("mouseup", up);
-    return () => window.removeEventListener("mouseup", up);
+    window.addEventListener("touchend", up);
+    return () => {
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchend", up);
+    };
   }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (!selectedId) return;
+      e.preventDefault();
+      setAnnotations(a => a.filter(x => x.id !== selectedId));
+      setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedId]);
 
   const fs = Math.max(imageSize.w, imageSize.h) * 0.022;
   const sw = fs * 0.15;
+  const hs = fs * 0.5; // リサイズハンドルの半径
   const eraserWidths = { s: fs * 0.9, m: fs * 2, l: fs * 4 };
 
   // ─── ファイル読み込み ─────────────────────────────────────────────────────
@@ -225,19 +245,29 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
 
   // ─── 座標変換 ─────────────────────────────────────────────────────────────
 
-  function toSvg(e: React.MouseEvent): { x: number; y: number } {
+  function toSvg(e: React.MouseEvent | React.TouchEvent): { x: number; y: number } {
     const r = svgRef.current!.getBoundingClientRect();
+    let clientX: number, clientY: number;
+    if ("touches" in e) {
+      const t = e.touches[0] ?? e.changedTouches[0];
+      clientX = t.clientX; clientY = t.clientY;
+    } else {
+      clientX = e.clientX; clientY = e.clientY;
+    }
     return {
-      x: ((e.clientX - r.left) / r.width)  * imageSize.w,
-      y: ((e.clientY - r.top)  / r.height) * imageSize.h,
+      x: ((clientX - r.left) / r.width)  * imageSize.w,
+      y: ((clientY - r.top)  / r.height) * imageSize.h,
     };
   }
 
   // ─── SVGマウスイベント ────────────────────────────────────────────────────
 
-  function onSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
+  type SvgEvent = React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>;
+
+  function onSvgMouseDown(e: SvgEvent) {
+    e.preventDefault();
     const p = toSvg(e);
-    if (tool === "eraser") { e.preventDefault(); setIsErasing(true); setCurrentEraserPoints([p]); return; }
+    if (tool === "eraser") { setIsErasing(true); setCurrentEraserPoints([p]); return; }
     if (tool === "select") { setSelectedId(null); return; }
     if (tool === "text")   return;
     if (tool === "symbol") {
@@ -252,7 +282,8 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     setDrag({ mode: "draw", sx: p.x, sy: p.y, cx: p.x, cy: p.y });
   }
 
-  function onSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+  function onSvgMouseMove(e: SvgEvent) {
+    e.preventDefault();
     const p = toSvg(e);
     if (tool === "eraser") {
       setSvgCursor(p);
@@ -263,13 +294,16 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     if (!drag) return;
     if (drag.mode === "draw") {
       setDrag({ ...drag, cx: p.x, cy: p.y });
-    } else {
+    } else if (drag.mode === "move") {
       const dx = p.x - drag.sx, dy = p.y - drag.sy;
       setAnnotations(prev => prev.map(a => a.id === drag.id ? translate(drag.orig, dx, dy) : a));
+    } else if (drag.mode === "resize") {
+      const dx = p.x - drag.sx, dy = p.y - drag.sy;
+      setAnnotations(prev => prev.map(a => a.id === drag.id ? applyResize(drag.orig, drag.handle, dx, dy) : a));
     }
   }
 
-  function onSvgMouseUp(e: React.MouseEvent<SVGSVGElement>) {
+  function onSvgMouseUp(e: SvgEvent) {
     if (tool === "eraser") {
       if (isErasing && currentEraserPoints.length > 0) {
         setEraserStrokes(prev => [...prev, { id: randomUUID(), seq: nextSeq(), points: currentEraserPoints, width: eraserWidths[eraserSize] }]);
@@ -296,7 +330,7 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     setDrag(null);
   }
 
-  function onAnnotationMouseDown(id: string, e: React.MouseEvent) {
+  function onAnnotationMouseDown(id: string, e: React.MouseEvent | React.TouchEvent) {
     if (tool !== "select") return;
     e.stopPropagation();
     setSelectedId(id);
@@ -328,6 +362,45 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     setAnnotations(prev => prev.map(a => (a.id === id && a.type === "text") ? { ...a, fontSize } : a));
   }
 
+  function updateColor(id: string, newColor: string) {
+    setAnnotations(prev => prev.map(a => a.id === id ? { ...a, color: newColor } : a));
+  }
+
+  function applyResize(orig: Annotation, handle: string, dx: number, dy: number): Annotation {
+    const minS = fs * 2, minR = fs;
+    switch (orig.type) {
+      case "rect": {
+        let { x, y, w, h } = orig;
+        if (handle === "nw") { x = orig.x + dx; y = orig.y + dy; w = Math.max(minS, orig.w - dx); h = Math.max(minS, orig.h - dy); }
+        if (handle === "ne") { y = orig.y + dy; w = Math.max(minS, orig.w + dx); h = Math.max(minS, orig.h - dy); }
+        if (handle === "se") { w = Math.max(minS, orig.w + dx); h = Math.max(minS, orig.h + dy); }
+        if (handle === "sw") { x = orig.x + dx; w = Math.max(minS, orig.w - dx); h = Math.max(minS, orig.h + dy); }
+        return { ...orig, x, y, w, h };
+      }
+      case "ellipse": {
+        const { cx, cy, rx, ry } = orig;
+        if (handle === "nw") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx - dx/2), ry: Math.max(minR, ry - dy/2) };
+        if (handle === "ne") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx + dx/2), ry: Math.max(minR, ry - dy/2) };
+        if (handle === "se") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx + dx/2), ry: Math.max(minR, ry + dy/2) };
+        if (handle === "sw") return { ...orig, cx: cx + dx/2, cy: cy + dy/2, rx: Math.max(minR, rx - dx/2), ry: Math.max(minR, ry + dy/2) };
+        return orig;
+      }
+      case "line":
+      case "arrow":
+        if (handle === "p1") return { ...orig, x1: orig.x1 + dx, y1: orig.y1 + dy };
+        if (handle === "p2") return { ...orig, x2: orig.x2 + dx, y2: orig.y2 + dy };
+        return orig;
+      default:
+        return orig;
+    }
+  }
+
+  function onHandleMouseDown(id: string, handle: string, e: React.MouseEvent | React.TouchEvent) {
+    e.stopPropagation();
+    const orig = annotations.find(a => a.id === id)!;
+    setDrag({ mode: "resize", id, handle, sx: toSvg(e).x, sy: toSvg(e).y, orig });
+  }
+
   // ─── 描画 ─────────────────────────────────────────────────────────────────
 
   function renderDraft() {
@@ -355,37 +428,80 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
     const sw2 = isSel ? sw * 3 : sw * 1.5;
     const dash = isSel ? `${fs} ${fs*0.4}` : undefined;
     const cur  = tool === "select" ? ("move" as const) : ("default" as const);
-    const onMD = (e: React.MouseEvent) => onAnnotationMouseDown(a.id, e);
-    const txt  = { fill: a.color, fontSize: fs, fontWeight: "700" as const, paintOrder: "stroke" as const, stroke: "white", strokeWidth: fs*0.25 };
+    const onMD  = (e: React.MouseEvent)  => onAnnotationMouseDown(a.id, e);
+    const onTS  = (e: React.TouchEvent)  => { e.preventDefault(); onAnnotationMouseDown(a.id, e); };
+    const onHMD = (h: string) => (e: React.MouseEvent)  => onHandleMouseDown(a.id, h, e);
+    const onHTS = (h: string) => (e: React.TouchEvent)  => { e.preventDefault(); onHandleMouseDown(a.id, h, e); };
+    const txt   = { fill: a.color, fontSize: fs, fontWeight: "700" as const, paintOrder: "stroke" as const, stroke: "white", strokeWidth: fs*0.25 };
 
     switch (a.type) {
       case "rect":
         return (
-          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
+          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD} onTouchStart={onTS}>
             <rect x={a.x} y={a.y} width={a.w} height={a.h} fill={isSel ? `${a.color}22` : "none"} stroke={a.color} strokeWidth={sw2} strokeDasharray={dash} />
             {a.label && <text x={a.x+sw} y={a.y-sw} {...txt}>{a.label}</text>}
+            {isSel && tool === "select" && (
+              [["nw", a.x,      a.y      ] as const,
+               ["ne", a.x+a.w, a.y      ] as const,
+               ["se", a.x+a.w, a.y+a.h  ] as const,
+               ["sw", a.x,     a.y+a.h  ] as const,
+              ].map(([h, hx, hy]) => (
+                <rect key={h} x={hx-hs} y={hy-hs} width={hs*2} height={hs*2}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: `${h}-resize` }}
+                  onMouseDown={onHMD(h)} onTouchStart={onHTS(h)} />
+              ))
+            )}
           </g>
         );
       case "ellipse":
         return (
-          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
+          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD} onTouchStart={onTS}>
             <ellipse cx={a.cx} cy={a.cy} rx={a.rx} ry={a.ry} fill={isSel ? `${a.color}22` : "none"} stroke={a.color} strokeWidth={sw2} strokeDasharray={dash} />
             {a.label && <text x={a.cx-a.rx+sw} y={a.cy-a.ry-sw} {...txt}>{a.label}</text>}
+            {isSel && tool === "select" && (
+              [["nw", a.cx-a.rx, a.cy-a.ry] as const,
+               ["ne", a.cx+a.rx, a.cy-a.ry] as const,
+               ["se", a.cx+a.rx, a.cy+a.ry] as const,
+               ["sw", a.cx-a.rx, a.cy+a.ry] as const,
+              ].map(([h, hx, hy]) => (
+                <rect key={h} x={hx-hs} y={hy-hs} width={hs*2} height={hs*2}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: `${h}-resize` }}
+                  onMouseDown={onHMD(h)} onTouchStart={onHTS(h)} />
+              ))
+            )}
           </g>
         );
       case "line":
         return (
-          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
+          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD} onTouchStart={onTS}>
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke="transparent" strokeWidth={sw2*5} />
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke={a.color} strokeWidth={sw2} strokeLinecap="round" strokeDasharray={dash} />
+            {isSel && tool === "select" && (
+              [["p1", a.x1, a.y1] as const, ["p2", a.x2, a.y2] as const].map(([h, hx, hy]) => (
+                <circle key={h} cx={hx} cy={hy} r={hs}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: "move" }}
+                  onMouseDown={onHMD(h)} onTouchStart={onHTS(h)} />
+              ))
+            )}
           </g>
         );
       case "arrow":
         return (
-          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD}>
+          <g key={a.id} style={{ cursor: cur }} onMouseDown={onMD} onTouchStart={onTS}>
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke="transparent" strokeWidth={sw2*5} />
             <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke={a.color} strokeWidth={sw2} strokeLinecap="round" strokeDasharray={dash} />
             <Arrowhead x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} color={a.color} size={fs*0.8} />
+            {isSel && tool === "select" && (
+              [["p1", a.x1, a.y1] as const, ["p2", a.x2, a.y2] as const].map(([h, hx, hy]) => (
+                <circle key={h} cx={hx} cy={hy} r={hs}
+                  fill="white" stroke={a.color} strokeWidth={sw}
+                  style={{ cursor: "move" }}
+                  onMouseDown={onHMD(h)} onTouchStart={onHTS(h)} />
+              ))
+            )}
           </g>
         );
       case "text": {
@@ -393,7 +509,8 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
         return (
           <text key={a.id} x={a.x} y={a.y}
             fill={a.color} fontSize={tfs} fontWeight="700" paintOrder="stroke" stroke="white" strokeWidth={tfs * 0.25}
-            style={{ cursor: cur, userSelect: "none" }} textDecoration={isSel ? "underline" : undefined} onMouseDown={onMD}>
+            style={{ cursor: cur, userSelect: "none" }} textDecoration={isSel ? "underline" : undefined}
+            onMouseDown={onMD} onTouchStart={onTS}>
             {a.text}
           </text>
         );
@@ -567,6 +684,15 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
             {selectedA && tool === "select" && (
               <>
                 <span className="text-zinc-300">|</span>
+                <span className="text-xs text-zinc-500">色：</span>
+                <div className="flex gap-1.5">
+                  {COLORS.map(c => (
+                    <button key={c} type="button" onClick={() => updateColor(selectedId!, c)}
+                      className="h-6 w-6 rounded-full transition"
+                      style={{ backgroundColor: c, outline: selectedA.color === c ? `2.5px solid ${c}` : undefined, outlineOffset: "2px" }} />
+                  ))}
+                </div>
+                <span className="text-zinc-300">|</span>
                 {(selectedA.type === "rect" || selectedA.type === "ellipse") && (
                   <input type="text" value={selectedA.label}
                     onChange={(e) => updateLabel(selectedId!, e.target.value)}
@@ -636,6 +762,9 @@ export default function FloorPlanModal({ initial, onConfirm, onCancel }: Props) 
               onMouseMove={onSvgMouseMove}
               onMouseUp={onSvgMouseUp}
               onMouseLeave={() => setSvgCursor(null)}
+              onTouchStart={onSvgMouseDown}
+              onTouchMove={onSvgMouseMove}
+              onTouchEnd={onSvgMouseUp}
             >
               <defs>
                 {annotations.map(a => (
