@@ -10,6 +10,7 @@ import { CONTRACTOR_NAME, PROJECT_NAME, SURVEY_CONTENT_OPTIONS } from "@/lib/con
 import FloorPlanModal, { type FloorPlanResult } from "./FloorPlanModal";
 import type { Annotation, EraserStroke } from "@/lib/floorPlanTypes";
 import { randomUUID } from "@/lib/uuid";
+import { openCamera } from "@/lib/openCamera";
 import ContinuousCamera from "./ContinuousCamera";
 
 type EntryItem = {
@@ -47,7 +48,7 @@ export default function EntryPage() {
   const [items, setItems] = useState<EntryItem[]>([newItem()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  type FPEntry = { id: string; file: File; imageDataUrl: string; imageSize: { w: number; h: number }; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
+  type FPEntry = { id: string; title: string; file: File; imageDataUrl: string; imageSize: { w: number; h: number }; annotations: Annotation[]; eraserStrokes: EraserStroke[] };
   const [fpEntries,     setFpEntries]     = useState<FPEntry[]>([]);
   const [editingFPId,   setEditingFPId]   = useState<string | null>(null);
   const [showFPModal,   setShowFPModal]   = useState(false);
@@ -125,7 +126,7 @@ export default function EntryPage() {
       for (let i = 0; i < fpEntries.length; i++) {
         const fp = fpEntries[i];
         formData.append(`floorPlan_${i}`, fp.file, fp.file.name);
-        formData.set(`floorPlanData_${i}`, JSON.stringify({ imageWidth: fp.imageSize.w, imageHeight: fp.imageSize.h, annotations: fp.annotations, eraserStrokes: fp.eraserStrokes }));
+        formData.set(`floorPlanData_${i}`, JSON.stringify({ title: fp.title, imageWidth: fp.imageSize.w, imageHeight: fp.imageSize.h, annotations: fp.annotations, eraserStrokes: fp.eraserStrokes }));
       }
 
       const res = await fetch("/api/drafts", {
@@ -492,10 +493,29 @@ export default function EntryPage() {
             {fpEntries.map((fp) => (
               <div key={fp.id} className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fp.imageDataUrl} alt="図面" className="h-16 w-24 rounded object-contain border border-zinc-200 bg-white" />
-                <div className="flex flex-1 items-center justify-end gap-2">
+                <img src={fp.imageDataUrl} alt="図面" className="h-16 w-24 shrink-0 rounded object-contain border border-zinc-200 bg-white" />
+                <span className="flex-1 text-sm text-zinc-700 truncate">
+                  {fp.title || <span className="text-zinc-400">（タイトルなし）</span>}
+                </span>
+                <div className="flex items-center gap-2">
                   <button type="button" onClick={() => { setEditingFPId(fp.id); setShowFPModal(true); }}
                     className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs font-medium hover:bg-zinc-50">編集</button>
+                  <button type="button" onClick={() => {
+                    setFpEntries((prev) => {
+                      const idx = prev.findIndex((e) => e.id === fp.id);
+                      if (idx === -1) return prev;
+                      const target = prev[idx];
+                      const copy: typeof target = {
+                        ...target,
+                        id: randomUUID(),
+                        title: target.title ? target.title + "（コピー）" : "（コピー）",
+                        annotations: target.annotations.map(a => ({ ...a, id: randomUUID() })),
+                      };
+                      const next = [...prev];
+                      next.splice(idx + 1, 0, copy);
+                      return next;
+                    });
+                  }} className="rounded-lg border border-zinc-200 bg-white px-3 py-1 text-xs font-medium hover:bg-zinc-50">複製</button>
                   <button type="button" onClick={() => setFpEntries((prev) => prev.filter((e) => e.id !== fp.id))}
                     className="text-xs text-red-500 hover:text-red-700">削除</button>
                 </div>
@@ -518,12 +538,12 @@ export default function EntryPage() {
         const editing = editingFPId ? fpEntries.find((e) => e.id === editingFPId) : null;
         return (
           <FloorPlanModal
-            initial={editing ? { file: editing.file, imageDataUrl: editing.imageDataUrl, imageSize: editing.imageSize, annotations: editing.annotations, eraserStrokes: editing.eraserStrokes } : undefined}
+            initial={editing ? { file: editing.file, imageDataUrl: editing.imageDataUrl, imageSize: editing.imageSize, annotations: editing.annotations, eraserStrokes: editing.eraserStrokes, title: editing.title } : undefined}
             onConfirm={(result: FloorPlanResult) => {
               if (editingFPId) {
-                setFpEntries((prev) => prev.map((e) => e.id === editingFPId ? { ...e, file: result.file, imageDataUrl: result.imageDataUrl, imageSize: result.imageSize, annotations: result.annotations, eraserStrokes: result.eraserStrokes } : e));
+                setFpEntries((prev) => prev.map((e) => e.id === editingFPId ? { ...e, title: result.title, file: result.file, imageDataUrl: result.imageDataUrl, imageSize: result.imageSize, annotations: result.annotations, eraserStrokes: result.eraserStrokes } : e));
               } else {
-                setFpEntries((prev) => [...prev, { id: randomUUID(), file: result.file, imageDataUrl: result.imageDataUrl, imageSize: result.imageSize, annotations: result.annotations, eraserStrokes: result.eraserStrokes }]);
+                setFpEntries((prev) => [...prev, { id: randomUUID(), title: result.title, file: result.file, imageDataUrl: result.imageDataUrl, imageSize: result.imageSize, annotations: result.annotations, eraserStrokes: result.eraserStrokes }]);
               }
               setShowFPModal(false);
             }}

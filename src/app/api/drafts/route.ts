@@ -80,12 +80,12 @@ export async function POST(req: Request) {
     if (!(fpFile instanceof File) || !fpDataRaw) break;
     try {
       const fpData = JSON.parse(fpDataRaw) as {
-        imageWidth: number; imageHeight: number;
+        title?: string; imageWidth: number; imageHeight: number;
         annotations: StoredFloorPlan["annotations"];
         eraserStrokes: StoredFloorPlan["eraserStrokes"];
       };
       const stored = await storeUpload(fpFile);
-      draftFloorPlans.push({ filename: stored.filename, imageWidth: fpData.imageWidth, imageHeight: fpData.imageHeight, annotations: fpData.annotations, eraserStrokes: fpData.eraserStrokes });
+      draftFloorPlans.push({ filename: stored.filename, title: fpData.title ?? "", imageWidth: fpData.imageWidth, imageHeight: fpData.imageHeight, annotations: fpData.annotations, eraserStrokes: fpData.eraserStrokes });
     } catch { /* ignore */ }
   }
 
