@@ -322,7 +322,7 @@ export default function InvestigationPage() {
 
             {/* 撮影ボタン */}
             <label className="flex h-14 w-full max-w-sm cursor-pointer items-center justify-center rounded-2xl bg-zinc-900 text-base font-bold text-white active:bg-zinc-700">
-              📷 {currentStepPhotos.length > 0 ? "もう1枚撮影する" : "撮影する"}
+              📷 撮影する
               <input
                 key={`photo-${currentStepIndex}-${currentStepPhotos.length}`}
                 type="file"
@@ -353,17 +353,19 @@ export default function InvestigationPage() {
               </label>
             )}
 
-            {/* ステップを進めるボタン */}
-            <button
-              type="button"
-              disabled={currentStepPhotos.length === 0}
-              onClick={advanceStep}
-              className="h-12 w-full max-w-sm rounded-2xl border-2 border-zinc-900 text-base font-bold text-zinc-900 disabled:opacity-30 active:bg-zinc-100"
-            >
-              {currentStepIndex < PHOTO_STEPS.length - 1
-                ? `次のステップへ（${PHOTO_STEPS[currentStepIndex + 1] ? stepLabel(PHOTO_STEPS[currentStepIndex + 1].key) + "の撮影へ" : ""}）`
-                : "この箇所の撮影を完了"}
-            </button>
+            {/* 撮影完了ボタン（1枚以上撮ったら出現） */}
+            {currentStepPhotos.length > 0 && (
+              <button
+                type="button"
+                onClick={advanceStep}
+                className="h-12 w-full max-w-sm rounded-2xl border-2 border-zinc-900 text-base font-bold text-zinc-900 active:bg-zinc-100"
+              >
+                {currentStepPhotos.length}枚で撮影完了 →{" "}
+                {currentStepIndex < PHOTO_STEPS.length - 1
+                  ? stepLabel(PHOTO_STEPS[currentStepIndex + 1].key) + "の撮影へ"
+                  : "この箇所を完了"}
+              </button>
+            )}
           </div>
         </div>
       )}
