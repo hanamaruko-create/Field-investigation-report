@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { randomUUID } from "@/lib/uuid";
 
@@ -66,6 +66,8 @@ export default function InvestigationPage() {
   const [locations, setLocations] = useState<LocationData[]>([]);
   const [currentPhotos, setCurrentPhotos] = useState<PhotoData[]>([]);
   const [isIOS, setIsIOS] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const libInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent));
@@ -323,36 +325,46 @@ export default function InvestigationPage() {
             )}
 
             {/* 撮影ボタン */}
-            <label className="flex h-14 w-full max-w-sm cursor-pointer items-center justify-center rounded-2xl bg-zinc-900 text-base font-bold text-white active:bg-zinc-700">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              {...(isIOS ? { capture: "environment" } : {})}
+              className="hidden"
+              onChange={(e) => {
+                handlePhoto(Array.from(e.target.files ?? []));
+                if (photoInputRef.current) photoInputRef.current.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="flex h-14 w-full max-w-sm items-center justify-center rounded-2xl bg-zinc-900 text-base font-bold text-white active:bg-zinc-700"
+              onClick={() => photoInputRef.current?.click()}
+            >
               📷 撮影する
-              <input
-                key={`photo-${currentStepIndex}-${currentStepPhotos.length}`}
-                type="file"
-                accept="image/*"
-                {...(isIOS ? { capture: "environment" } : {})}
-                className="hidden"
-                onChange={(e) => {
-                  handlePhoto(Array.from(e.target.files ?? []));
-                  e.target.value = "";
-                }}
-              />
-            </label>
+            </button>
 
             {/* ライブラリから選択 */}
             {!isIOS && (
-              <label className="flex h-12 w-full max-w-sm cursor-pointer items-center justify-center rounded-xl border border-zinc-300 text-sm font-medium text-zinc-600 hover:bg-zinc-50">
-                🖼 ライブラリから選択
+              <>
                 <input
-                  key={`lib-${currentStepIndex}-${currentStepPhotos.length}`}
+                  ref={libInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
                   onChange={(e) => {
                     handlePhoto(Array.from(e.target.files ?? []));
-                    e.target.value = "";
+                    if (libInputRef.current) libInputRef.current.value = "";
                   }}
                 />
-              </label>
+                <button
+                  type="button"
+                  className="flex h-12 w-full max-w-sm items-center justify-center rounded-xl border border-zinc-300 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
+                  onClick={() => libInputRef.current?.click()}
+                >
+                  🖼 ライブラリから選択
+                </button>
+              </>
             )}
 
             {/* 撮影完了ボタン（1枚以上撮ったら出現） */}
