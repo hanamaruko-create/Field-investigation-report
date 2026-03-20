@@ -9,6 +9,12 @@ export default function Home() {
 
       <div className="flex flex-col gap-4 w-full max-w-xs">
         <Link
+          href="/investigation"
+          className="flex items-center justify-center rounded-xl bg-blue-600 px-6 py-4 text-sm font-medium text-white hover:bg-blue-500"
+        >
+          現調を開始する
+        </Link>
+        <Link
           href="/entry"
           className="flex items-center justify-center rounded-xl bg-zinc-900 px-6 py-4 text-sm font-medium text-white hover:bg-zinc-700"
         >
