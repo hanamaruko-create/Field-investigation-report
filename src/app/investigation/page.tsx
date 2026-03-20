@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { randomUUID } from "@/lib/uuid";
 
 // ── 撮影ステップ定義 ──────────────────────────────────────────────
@@ -58,6 +59,7 @@ function stepLabel(key: string) {
 // ── メインコンポーネント ─────────────────────────────────────────
 
 export default function InvestigationPage() {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>("start");
   const [locationName, setLocationName] = useState("");
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -488,6 +490,13 @@ export default function InvestigationPage() {
 
           {/* 操作ボタン */}
           <div className="flex flex-col gap-3 border-t border-zinc-200 bg-zinc-50 p-4">
+            <button
+              type="button"
+              onClick={() => router.push("/entry")}
+              className="h-14 w-full rounded-2xl bg-zinc-900 text-base font-bold text-white active:bg-zinc-700"
+            >
+              保存して報告書入力へ進む →
+            </button>
             <button
               type="button"
               onClick={startNewLocation}
